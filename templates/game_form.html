@@ -9,6 +9,37 @@
 {{ game[field] if game and game[field] is not none else fallback }}
 {%- endmacro %}
 
+{% macro captain_picker(field, label, current, placeholder) -%}
+    <div class="field">
+      <label class="field-label" for="{{ field }}">{{ label }}</label>
+      <select id="{{ field }}" name="{{ field }}" class="captain-select"
+              data-target="{{ field }}-add" required>
+        <option value="">Choose</option>
+        {% for box in boxes %}
+          {% set members = captains | selectattr('box', 'equalto', box) | list %}
+          {% if members %}
+            <optgroup label="{{ box }}">
+              {% for captain in members %}
+                <option value="{{ captain.name }}"
+                        {{ 'selected' if captain.name == current }}>{{ captain.name }}</option>
+              {% endfor %}
+            </optgroup>
+          {% endif %}
+        {% endfor %}
+        <option value="__new__">Add a captain</option>
+      </select>
+    </div>
+
+    <div class="field field-add" id="{{ field }}-add" hidden>
+      <span class="field-label">New</span>
+      <input type="text" name="{{ field }}_new" placeholder="{{ placeholder }}"
+             maxlength="60" autocomplete="off">
+      <select name="{{ field }}_box" class="box-select" aria-label="Which box">
+        {% for box in boxes %}<option value="{{ box }}">{{ box }}</option>{% endfor %}
+      </select>
+    </div>
+{%- endmacro %}
+
 {% block content %}
 
 <form id="game-form" method="post" enctype="multipart/form-data"
@@ -34,12 +65,8 @@
              value="{{ val('played_on', today) }}" required>
     </div>
 
-    <div class="field">
-      <label class="field-label" for="player_captain">You</label>
-      <input type="text" id="player_captain" name="player_captain" list="captain-list"
-             value="{{ val('player_captain') }}" placeholder="Georgiou"
-             autocomplete="off" required>
-    </div>
+{{ captain_picker('player_captain', 'You',
+                      game['player_captain'] if game else '', 'Georgiou') }}
 
     <div class="field">
       <span class="field-label">Board</span>
@@ -58,12 +85,8 @@
       </div>
     </div>
 
-    <div class="field">
-      <label class="field-label" for="bot_captain">Bot</label>
-      <input type="text" id="bot_captain" name="bot_captain" list="captain-list"
-             value="{{ val('bot_captain') }}" placeholder="Soval"
-             autocomplete="off" required>
-    </div>
+{{ captain_picker('bot_captain', 'Bot',
+                      game['bot_captain'] if game else '', 'Soval') }}
 
     <div class="field">
       <label class="field-label" for="bot_difficulty">Rank</label>
@@ -93,10 +116,6 @@
     </div>
 
   </div>
-
-  <datalist id="captain-list">
-    {% for captain in captains %}<option value="{{ captain.name }}">{% endfor %}
-  </datalist>
 
   <div id="score-block">
     <div class="grid-head">

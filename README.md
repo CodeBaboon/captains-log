@@ -116,10 +116,17 @@ tar czf cc-$(date +%F).tar.gz -C /var/lib/captains-log photos /tmp/cc-backup.db
 
 ## Captains
 
-`db.py` seeds the eleven captains I could confirm across both boxes. The captain
-fields are free text with autocomplete, so anyone you type gets remembered and
-appears in the list next time. When you pick up the original box, you should not
-need to touch the code.
+`db.py` seeds the eleven captains I could confirm across both boxes, grouped by
+which box they came from.
+
+The captain fields are dropdowns, not free text, so a typo cannot mint a phantom
+captain that splits your stats later. To add one, pick "Add a captain" at the
+bottom of the list and a name field appears alongside a box selector.
+
+Matching is case-insensitive throughout. If a captain already exists under a
+different capitalisation, that spelling wins, so "georgiou" resolves to
+"Georgiou" rather than creating a second one. A scanned sheet that names an
+unknown captain drops into the add field rather than being discarded.
 
 ## Scanning
 

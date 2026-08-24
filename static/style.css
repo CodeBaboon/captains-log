@@ -20,6 +20,10 @@
 
 * { box-sizing: border-box; }
 
+/* Our own display rules outrank the browser default for [hidden], so the
+   attribute needs enforcing or hidden panels stay visible. */
+[hidden] { display: none !important; }
+
 html {
   background: var(--ink);
   -webkit-text-size-adjust: 100%;
@@ -373,6 +377,18 @@ select {
   background-size: 5px 5px, 5px 5px;
   background-repeat: no-repeat;
   padding-right: 30px;
+}
+
+.field-add { align-items: center; }
+
+.field-add input[type="text"] { flex: 1 1 auto; min-width: 0; }
+
+.box-select {
+  flex: 0 0 128px;
+  width: 128px;
+  font-size: 12px;
+  padding: 9px 24px 9px 10px;
+  background-position: right 12px center, right 7px center;
 }
 
 /* --- Pill radio groups ------------------------------------------------ */

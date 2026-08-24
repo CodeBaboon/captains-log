@@ -156,15 +156,46 @@ def list_captains():
     return [dict(r) for r in rows]
 
 
-def ensure_captain(name):
-    """Add a captain we have not seen before. Idempotent."""
+BOXES = ["To Boldly Go", "Captain's Chair", "Expansion", "Other"]
+
+
+def captain_exists(name):
+    """Case-insensitive lookup. Returns the stored spelling, or None."""
     name = (name or "").strip()
     if not name:
-        return
+        return None
+    conn = connect()
+    row = conn.execute(
+        "SELECT name FROM captains WHERE name = ? COLLATE NOCASE AND active = 1",
+        (name,),
+    ).fetchone()
+    conn.close()
+    return row["name"] if row else None
+
+
+def add_captain(name, box="Other"):
+    """Register a captain. Returns the stored spelling.
+
+    If one already exists under a different capitalisation, that spelling wins,
+    so 'georgiou' can never become a second Georgiou.
+    """
+    name = (name or "").strip()
+    if not name:
+        return None
+
+    existing = captain_exists(name)
+    if existing:
+        return existing
+
+    if box not in BOXES:
+        box = "Other"
     conn = connect()
     with conn:
-        conn.execute("INSERT OR IGNORE INTO captains (name) VALUES (?)", (name,))
+        conn.execute(
+            "INSERT OR IGNORE INTO captains (name, box) VALUES (?, ?)", (name, box)
+        )
     conn.close()
+    return name
 
 
 GAME_FIELDS = (

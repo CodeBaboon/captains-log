@@ -70,6 +70,7 @@
     if (event.target.name === 'board_side') applyBoardSide();
     if (event.target.name === 'ending') applyEnding();
     if (event.target.name === 'played_on') updateStardate();
+    if (event.target.classList.contains('captain-select')) toggleAddField(event.target);
   });
 
   // Decorative stardate in the header.
@@ -102,6 +103,39 @@
     if (el) el.value = value;
   }
 
+  // Match a scanned name against the dropdown, ignoring case. If it is not on
+  // the list, drop into the add field rather than silently discarding it.
+  function setCaptain(field, value) {
+    if (!value) return;
+    var select = document.getElementById(field);
+    if (!select) return;
+
+    var wanted = value.trim().toLowerCase();
+    var options = select.querySelectorAll('option');
+    for (var i = 0; i < options.length; i++) {
+      if (options[i].value.toLowerCase() === wanted) {
+        select.value = options[i].value;
+        toggleAddField(select);
+        return;
+      }
+    }
+
+    select.value = '__new__';
+    toggleAddField(select);
+    var typed = document.querySelector('input[name="' + field + '_new"]');
+    if (typed) typed.value = value.trim();
+  }
+
+  function toggleAddField(select) {
+    var panel = document.getElementById(select.dataset.target);
+    if (!panel) return;
+    var adding = select.value === '__new__';
+    panel.hidden = !adding;
+    var typed = panel.querySelector('input[type="text"]');
+    if (typed) typed.required = adding;
+    if (!adding && typed) typed.value = '';
+  }
+
   function setRadio(name, value) {
     if (!value) return;
     var el = form.querySelector('input[name="' + name + '"][value="' + value + '"]');
@@ -109,8 +143,8 @@
   }
 
   function fill(data) {
-    setField('player_captain', data.player_captain);
-    setField('bot_captain', data.bot_captain);
+    setCaptain('player_captain', data.player_captain);
+    setCaptain('bot_captain', data.bot_captain);
     setField('bot_difficulty', data.bot_difficulty);
     setRadio('board_side', data.board_side);
 
@@ -162,6 +196,8 @@
     });
   }
 
+  Array.prototype.forEach.call(
+    document.querySelectorAll('.captain-select'), toggleAddField);
   applyBoardSide();
   applyEnding();
   recalculate();

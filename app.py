@@ -153,6 +153,31 @@ def log_page():
 # Game entry
 # --------------------------------------------------------------------------
 
+def _resolve_captain(form, field, label):
+    """Take a captain from the dropdown, or from the reveal-on-demand text box.
+
+    Only names already on the list, or ones typed into the explicit add field,
+    are accepted. That stops a typo from quietly minting a new captain.
+    """
+    choice = (form.get(field) or "").strip()
+
+    if choice == "__new__":
+        typed = (form.get(field + "_new") or "").strip()
+        if not typed:
+            raise ValueError(f"Enter a name for {label}.")
+        if len(typed) > 60:
+            raise ValueError("That captain name is too long.")
+        return db.add_captain(typed, form.get(field + "_box") or "Other")
+
+    if not choice:
+        raise ValueError(f"Choose {label}.")
+
+    known = db.captain_exists(choice)
+    if not known:
+        raise ValueError(f"{choice} is not on the captain list.")
+    return known
+
+
 def _parse_game_form(form):
     """Turn posted form fields into a row dict, or raise ValueError."""
     played_on = form.get("played_on", "").strip()
@@ -161,10 +186,8 @@ def _parse_game_form(form):
     except ValueError:
         raise ValueError("Enter a valid date.")
 
-    player_captain = form.get("player_captain", "").strip()
-    bot_captain = form.get("bot_captain", "").strip()
-    if not player_captain or not bot_captain:
-        raise ValueError("Both captains are required.")
+    player_captain = _resolve_captain(form, "player_captain", "your captain")
+    bot_captain = _resolve_captain(form, "bot_captain", "the bot's captain")
 
     board_side = form.get("board_side")
     if board_side not in ("basic", "advanced"):
@@ -255,6 +278,7 @@ def new_game():
             return render_template(
                 "game_form.html",
                 captains=db.list_captains(),
+                boxes=db.BOXES,
                 difficulties=config.DIFFICULTIES,
                 rows=config.SCORE_ROWS,
                 game=request.form,
@@ -266,14 +290,13 @@ def new_game():
         data["created_at"] = db.now_iso()
         data["photo_path"] = _save_photo(request.files.get("photo"))
 
-        db.ensure_captain(data["player_captain"])
-        db.ensure_captain(data["bot_captain"])
         game_id = db.insert_game(data)
         return redirect(url_for("game_detail", game_id=game_id))
 
     return render_template(
         "game_form.html",
         captains=db.list_captains(),
+        boxes=db.BOXES,
         difficulties=config.DIFFICULTIES,
         rows=config.SCORE_ROWS,
         game=None,
@@ -297,8 +320,6 @@ def game_detail(game_id):
             return redirect(url_for("edit_game", game_id=game_id))
 
         data["photo_path"] = _save_photo(request.files.get("photo")) or game["photo_path"]
-        db.ensure_captain(data["player_captain"])
-        db.ensure_captain(data["bot_captain"])
         db.update_game(game_id, g.user["id"], data)
         return redirect(url_for("game_detail", game_id=game_id))
 
@@ -314,6 +335,7 @@ def edit_game(game_id):
     return render_template(
         "game_form.html",
         captains=db.list_captains(),
+        boxes=db.BOXES,
         difficulties=config.DIFFICULTIES,
         rows=config.SCORE_ROWS,
         game=game,

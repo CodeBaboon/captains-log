@@ -109,7 +109,14 @@ r = client.post("/games/new", data=form(p_glory="banana"), follow_redirects=True
 check("non-numeric cell rejected", b"not a whole number" in r.data)
 
 r = client.post("/games/new", data=form(player_captain=""), follow_redirects=True)
-check("missing captain rejected", b"Both captains are required" in r.data)
+check("missing captain rejected", b"Choose your captain" in r.data)
+
+r = client.post("/games/new", data=form(player_captain="Sulu"), follow_redirects=True)
+check("unlisted captain rejected", b"not on the captain list" in r.data)
+
+r = client.post("/games/new", data=form(player_captain="__new__",
+                                        player_captain_new=""), follow_redirects=True)
+check("empty new captain rejected", b"Enter a name for your captain" in r.data)
 
 r = client.post("/games/new", data=form(played_on="nonsense"), follow_redirects=True)
 check("bad date rejected", b"valid date" in r.data)
@@ -119,9 +126,31 @@ client.post("/games/new", data=form(bot_captain="Rebner"))
 names = [c["name"] for c in db.list_captains()]
 check("seeded captains present", "Picard" in names and "Soval" in names)
 
-client.post("/games/new", data=form(player_captain="Tuvok"))
+client.post("/games/new", data=form(player_captain="__new__",
+                                    player_captain_new="Tuvok",
+                                    player_captain_box="Expansion"))
 names = [c["name"] for c in db.list_captains()]
-check("unknown captain gets remembered", "Tuvok" in names)
+check("deliberate addition is kept", "Tuvok" in names)
+check("addition lands in the chosen box",
+      any(c["name"] == "Tuvok" and c["box"] == "Expansion" for c in db.list_captains()))
+
+client.post("/games/new", data=form(player_captain="__new__",
+                                    player_captain_new="tuvok"))
+tuvoks = [c for c in db.list_captains() if c["name"].lower() == "tuvok"]
+check("case variants do not fork a captain", len(tuvoks) == 1,
+      f"got {[c['name'] for c in tuvoks]}")
+
+row = db.list_games(1)[0]
+check("existing spelling wins", row["player_captain"] == "Tuvok",
+      f"got {row['player_captain']}")
+
+check("lookup is case-insensitive", db.captain_exists("GEORGIOU") == "Georgiou")
+check("unknown lookup returns nothing", db.captain_exists("Janeway") is None)
+
+client.post("/games/new", data=form(player_captain="georgiou"))
+row = db.list_games(1)[0]
+check("picked name is canonicalised", row["player_captain"] == "Georgiou",
+      f"got {row['player_captain']}")
 
 print("\nstats and pagination")
 stats = db.stats(1)
