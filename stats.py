@@ -232,6 +232,13 @@ def trend_geometry(points, width=340, height=90, pad_left=26, pad_bottom=16):
     def y_at(value):
         return 8 + (1 - (value - low) / span) * plot_h
 
+    def readable(value):
+        try:
+            parsed = datetime.strptime(value, "%Y-%m-%d")
+        except ValueError:
+            return value
+        return f"{parsed.strftime('%b')} {parsed.day}, {parsed.year}"
+
     plotted = [
         {
             "x": round(x_at(i), 1),
@@ -239,6 +246,7 @@ def trend_geometry(points, width=340, height=90, pad_left=26, pad_bottom=16):
             "total": p["total"],
             "result": p["result"],
             "date": p["date"],
+            "tooltip": f"{readable(p['date'])}: {p['total']} pts",
             "id": p["id"],
         }
         for i, p in enumerate(points)

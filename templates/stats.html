@@ -141,7 +141,6 @@
 
 <section class="panel">
   <h2 class="panel-title">Score over time</h2>
-  <p class="panel-sub">Each game, oldest first</p>
   {% if geometry %}
     <svg class="trend" viewBox="0 0 {{ geometry.width }} {{ geometry.height }}"
          role="img"
@@ -156,7 +155,7 @@
       {% for point in geometry.points %}
         <circle cx="{{ point.x }}" cy="{{ point.y }}" r="3.5"
                 fill="{{ '#99CC99' if point.result == 'win' else '#CC6666' }}">
-          <title>{{ point.date }}: {{ point.total }}</title>
+          <title>{{ point.tooltip }}</title>
         </circle>
       {% endfor %}
       <text x="{{ geometry.pad_left }}" y="{{ geometry.height - 2 }}"
@@ -239,17 +238,13 @@
       <span class="mrow-track">
         {% if entry.games %}
           <span class="mrow-fill" style="width: {{ entry.percent }}%;
-                       background: {{ '#99CC99' if entry.percent >= 50 else '#CC6666' }}">
-            {%- if entry.percent >= 26 -%}
-              <span class="bar-label bar-label-in">{{ entry.wins }}&ndash;{{ losses }}</span>
-            {%- endif -%}
+                       background: {{ '#99CC99' if entry.percent >= 50 else '#CC6666' }}"></span>
+          <span class="bar-label {{ 'bar-label-on-fill' if entry.percent >= 90
+                                    else 'bar-label-on-track' }}">
+            {{- entry.wins }}&ndash;{{ losses -}}
           </span>
-          {% if entry.percent < 26 %}
-            <span class="bar-label bar-label-out"
-                  style="left: {{ entry.percent }}%">{{ entry.wins }}&ndash;{{ losses }}</span>
-          {% endif %}
         {% else %}
-          <span class="bar-label bar-label-out" style="left: 0">No games</span>
+          <span class="bar-label bar-label-on-track">No games</span>
         {% endif %}
       </span>
     </div>

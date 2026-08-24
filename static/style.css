@@ -991,12 +991,7 @@ select {
 /* Win rate rows carry their label inside the bar, so no value column is needed
    and the track gets the full width back. */
 .mrow-wide .mrow-track { height: 20px; }
-.mrow-wide .mrow-fill {
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
+.mrow-wide .mrow-fill { height: 20px; }
 
 .bar-label {
   font-size: 11px;
@@ -1005,19 +1000,17 @@ select {
   white-space: nowrap;
 }
 
-/* Inside a filled bar the text sits on the fill colour, which is light. */
-.bar-label-in {
-  padding: 0 9px;
-  color: #14210F;
-}
-
-/* When the fill is too short to hold the label, it sits just past the end. */
-.bar-label-out {
+/* The label always sits at the right edge so every row lines up. Only its
+   colour changes, depending on whether the fill has reached that far. */
+.bar-label {
   position: absolute;
+  right: 0;
   top: 0;
   height: 20px;
   display: flex;
   align-items: center;
-  padding-left: 9px;
-  color: var(--text-dim);
+  padding-right: 10px;
 }
+
+.bar-label-on-fill { color: #14210F; }
+.bar-label-on-track { color: var(--text-dim); }

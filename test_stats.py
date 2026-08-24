@@ -117,6 +117,11 @@ check("trend runs oldest first", points[0]["date"] < points[-1]["date"])
 
 geo = analytics.trend_geometry(points)
 check("geometry produced", geo is not None)
+check("tooltips read as prose",
+      geo["points"][0]["tooltip"].endswith(" pts")
+      and "," in geo["points"][0]["tooltip"],
+      geo["points"][0]["tooltip"])
+check("tooltip carries the year", "2026" in geo["points"][0]["tooltip"])
 check("every point plotted", len(geo["points"]) == len(points))
 check("target line inside the canvas", 0 <= geo["target"] <= geo["height"])
 check("points inside the canvas",
@@ -155,6 +160,11 @@ check("panel renamed", b"Point breakdown" in r.data)
 check("n-notation gone from the page", b">n0<" not in r.data and b" n2<" not in r.data)
 check("win rate shows a record", b"No games" in r.data)
 check("win rate has no value column", b'mrow-wide' in r.data)
+check("every win rate label is right aligned",
+      b'bar-label-out' not in r.data and b'bar-label-in"' not in r.data)
+check("full bars use dark label text", b'bar-label-on-fill' in r.data)
+check("empty bars use light label text", b'bar-label-on-track' in r.data)
+check("trend subtitle removed", b"oldest first" not in r.data)
 check("subtitles removed", b"two games minimum" not in r.data
       and b"Sample size shown" not in r.data)
 check("captain picker starts closed", b"<details class=\"picker\">" in r.data)

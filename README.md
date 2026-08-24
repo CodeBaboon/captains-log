@@ -164,7 +164,8 @@ the magnitude that normalising discards is still visible.
 Sample sizes are spelled out rather than using n-notation: the scoring shape
 panel says "5 games", and the win rate panel puts the record inside the bar
 itself, so the bar length carries the rate and the label carries the sample.
-When the bar is too short to hold its label, the label sits just past the end.
+The label is always pinned to the right edge so every row lines up; only its
+colour changes, going dark once the fill reaches far enough to sit under it.
 
 Every captain with a scored game appears, including one-game captains, since
 the game count travels with each row. Negative Card VP is clamped
