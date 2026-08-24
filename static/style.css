@@ -347,6 +347,14 @@ body {
 .scan-status-busy  { color: var(--lcars-blue); }
 
 /* Solo rank: collapse the bot column out of the shared template. */
+#filters .field { margin-bottom: 12px; }
+
+.actions-row { display: flex; gap: 8px; margin-top: var(--gap); }
+.actions-row .btn { margin-top: 0; }
+.actions-row .btn-primary { flex: 2 1 0; }
+.actions-row .btn-ghost { flex: 1 1 0; }
+#filters .pills { gap: 8px; }
+
 #score-block.no-bot .grid-head,
 #score-block.no-bot .grid-row,
 #score-block.no-bot .totals,
@@ -924,15 +932,23 @@ select {
 }
 
 .mrow-value {
-  width: 74px;
+  width: 78px;
   flex: none;
-  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.25;
   font-size: 13px;
   letter-spacing: 0.04em;
   color: var(--lcars-gold);
 }
 
-.mrow-other { font-size: 11px; color: var(--text-dim); }
+.mrow-other {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
 
 .shape {
   flex: 1;

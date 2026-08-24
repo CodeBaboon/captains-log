@@ -241,11 +241,21 @@ def trend_geometry(points, width=340, height=90, pad_left=26, pad_bottom=16):
         for i, p in enumerate(points)
     ]
 
-    def month(value):
+    def parse(value):
         try:
-            return datetime.strptime(value, "%Y-%m-%d").strftime("%b").upper()
+            return datetime.strptime(value, "%Y-%m-%d")
         except ValueError:
+            return None
+
+    first, last = parse(points[0]["date"]), parse(points[-1]["date"])
+    same_month = first and last and (first.year, first.month) == (last.year, last.month)
+
+    def label(parsed):
+        if parsed is None:
             return ""
+        if same_month:
+            return f"{parsed.strftime('%b').upper()} {parsed.day}"
+        return parsed.strftime("%b").upper()
 
     return {
         "width": width,
@@ -254,7 +264,7 @@ def trend_geometry(points, width=340, height=90, pad_left=26, pad_bottom=16):
         "polyline": " ".join(f"{p['x']},{p['y']}" for p in plotted),
         "target": round(y_at(config.SOLO_WIN_SCORE), 1),
         "target_value": config.SOLO_WIN_SCORE,
-        "first_label": month(points[0]["date"]),
-        "last_label": month(points[-1]["date"]),
+        "first_label": label(first),
+        "last_label": label(last),
         "pad_left": pad_left,
     }

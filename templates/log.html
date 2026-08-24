@@ -21,8 +21,10 @@
   </div>
 </div>
 
-<a class="btn btn-primary btn-block" href="{{ url_for('new_game') }}">Log a game</a>
-<a class="btn btn-ghost btn-block" href="{{ url_for('stats_page') }}">Stats</a>
+<div class="actions-row">
+  <a class="btn btn-primary" href="{{ url_for('new_game') }}">Log a game</a>
+  <a class="btn btn-ghost" href="{{ url_for('stats_page') }}">Stats</a>
+</div>
 
 {% if games %}
   <div id="game-rows" class="rows">

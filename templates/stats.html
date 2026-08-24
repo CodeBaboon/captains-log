@@ -24,7 +24,7 @@
     </div>
   </div>
 
-  <details class="picker" {{ 'open' if chosen_captains }}>
+  <details class="picker">
     <summary>
       <span class="picker-summary">
       <span class="field-label">Captain</span>
@@ -161,7 +161,7 @@
       {% endfor %}
       <text x="{{ geometry.pad_left }}" y="{{ geometry.height - 2 }}"
             class="trend-tick">{{ geometry.first_label }}</text>
-      <text x="{{ geometry.width - 30 }}" y="{{ geometry.height - 2 }}"
+      <text x="{{ geometry.width - 44 }}" y="{{ geometry.height - 2 }}"
             class="trend-tick">{{ geometry.last_label }}</text>
     </svg>
   {% else %}
@@ -174,7 +174,7 @@
 
 {% if categories %}
 <section class="panel">
-  <h2 class="panel-title">Where the points come from</h2>
+  <h2 class="panel-title">Point breakdown</h2>
   <p class="panel-sub">
     Average per game, {{ "bot's" if perspective == 'you' else 'yours' }} marked with a line
   </p>
@@ -212,7 +212,10 @@
                 title="{{ seg.label }}: {{ seg.value }} ({{ seg.share }}%)"></span>
         {% endfor %}
       </span>
-      <span class="mrow-value">{{ entry.average }}<span class="mrow-other"> n{{ entry.games }}</span></span>
+      <span class="mrow-value">
+        {{ entry.average }}
+        <span class="mrow-other">{{ entry.games }} game{{ '' if entry.games == 1 else 's' }}</span>
+      </span>
     </div>
   {% endfor %}
 
@@ -241,11 +244,12 @@
         {% endif %}
       </span>
       <span class="mrow-value">
-        {%- if entry.games -%}
-          {{ entry.percent }}%<span class="mrow-other"> n{{ entry.games }}</span>
-        {%- else -%}
-          <span class="mrow-other">n0</span>
-        {%- endif -%}
+        {% if entry.games %}
+          {{ entry.percent }}%
+          <span class="mrow-other">{{ entry.wins }}&ndash;{{ entry.games - entry.wins }}</span>
+        {% else %}
+          <span class="mrow-other">No games</span>
+        {% endif %}
       </span>
     </div>
   {% endfor %}

@@ -144,6 +144,31 @@ for entry in comps:
 singleton = analytics.composition_by_captain(rows, "you", min_games=99)
 check("thin captains suppressed", singleton == [])
 
+print("\npresentation")
+r = client.get("/stats")
+check("panel renamed", b"Point breakdown" in r.data)
+check("n-notation gone from the page", b">n0<" not in r.data and b" n2<" not in r.data)
+check("win rate shows a record", b"No games" in r.data)
+check("captain picker starts closed", b"<details class=\"picker\">" in r.data)
+
+r = client.get("/stats?captain=Kirk")
+check("picker stays closed after applying",
+      b"<details class=\"picker\" open>" not in r.data)
+
+r = client.get("/")
+check("log buttons share a row", b"actions-row" in r.data)
+
+pts = analytics.trend(db.filtered_games(1), "you")
+same = [dict(p, date="2026-08-0%d" % (i + 1)) for i, p in enumerate(pts[:4])]
+geo = analytics.trend_geometry(same)
+check("single month labels carry the day", geo["first_label"] != geo["last_label"],
+      f"{geo['first_label']} / {geo['last_label']}")
+
+spread = [dict(pts[0], date="2026-06-01"), dict(pts[1], date="2026-08-01")]
+geo = analytics.trend_geometry(spread)
+check("multi month labels are months", geo["first_label"] == "JUN"
+      and geo["last_label"] == "AUG", f"{geo['first_label']} / {geo['last_label']}")
+
 print("\nedge cases")
 game(played_on="2026-08-10", player_captain="Khan", p_card_vp=-30, p_glory=1,
      p_locations=0, p_endgame=0, p_research=0, p_influence=0, p_military=0,

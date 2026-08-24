@@ -161,6 +161,11 @@ captain would bury the rest. Shares sum to 100, so every bar is the same length
 and the shapes are directly comparable. The raw average sits at the right so
 the magnitude that normalising discards is still visible.
 
+Sample sizes are spelled out rather than using n-notation: the scoring shape
+panel says "5 games" and the win rate panel shows the record as "3-0" beneath
+the percentage, so both the rate and the sample behind it are readable without
+knowing what n means.
+
 Captains with fewer than two games are suppressed. Negative Card VP is clamped
 to zero for the width calculation only — a negative slice has no sensible width
 — while the reported average stays truthful.
