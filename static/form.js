@@ -12,6 +12,9 @@
   var scoreBlock = document.getElementById('score-block');
   var burnNote = document.getElementById('burn-note');
   var missionRow = document.querySelector('.row-mission');
+  var botWrap = document.getElementById('bot-captain-wrap');
+  var soloNote = document.getElementById('solo-note');
+  var rankSelect = document.getElementById('bot_difficulty');
   var missionInput = document.getElementById('p_mission');
   var pTotal = document.getElementById('p-total');
   var bTotal = document.getElementById('b-total');
@@ -54,6 +57,32 @@
     recalculate();
   }
 
+  function applyRank() {
+    var solo = rankSelect && rankSelect.value === 'Cadet';
+
+    if (botWrap) botWrap.hidden = solo;
+    if (soloNote) soloNote.hidden = !solo;
+    scoreBlock.classList.toggle('no-bot', solo);
+
+    var botSelect = document.getElementById('bot_captain');
+    if (botSelect) {
+      botSelect.required = !solo;
+      if (solo) {
+        botSelect.value = '';
+        toggleAddField(botSelect);
+      }
+    }
+
+    BOT_KEYS.forEach(function (key) {
+      var cell = document.getElementById('b_' + key);
+      if (!cell) return;
+      cell.disabled = solo;
+      if (solo) cell.value = '';
+    });
+
+    recalculate();
+  }
+
   function applyEnding() {
     var burned = selected('ending') === 'burn';
     scoreBlock.hidden = burned;
@@ -68,6 +97,7 @@
 
   form.addEventListener('change', function (event) {
     if (event.target.name === 'board_side') applyBoardSide();
+    if (event.target.id === 'bot_difficulty') applyRank();
     if (event.target.name === 'ending') applyEnding();
     if (event.target.name === 'played_on') updateStardate();
     if (event.target.classList.contains('captain-select')) toggleAddField(event.target);
@@ -90,6 +120,14 @@
   var scanButton = document.getElementById('scan-button');
   var photoInput = document.getElementById('photo');
   var status = document.getElementById('scan-status');
+
+  function setBusy(busy) {
+    var icon = scanButton.querySelector('.scan-icon');
+    var label = scanButton.querySelector('.scan-label');
+    if (icon) icon.classList.toggle('is-spinning', busy);
+    if (label) label.textContent = busy ? 'Scanning' : 'Scan scoresheet';
+    scanButton.setAttribute('aria-busy', busy ? 'true' : 'false');
+  }
 
   function setStatus(message, kind) {
     if (!status) return;
@@ -155,6 +193,7 @@
       BOT_KEYS.forEach(function (key) { setField('b_' + key, data.bot[key]); });
     }
 
+    applyRank();
     applyBoardSide();
     recalculate();
 
@@ -176,7 +215,8 @@
 
       scanButton.disabled = true;
       scanButton.classList.add('is-busy');
-      setStatus('Reading the sheet', 'busy');
+      setBusy(true);
+      setStatus('Reading the sheet. This takes a few seconds.', 'busy');
 
       fetch('/api/extract', { method: 'POST', body: body })
         .then(function (response) {
@@ -192,12 +232,15 @@
         .then(function () {
           scanButton.disabled = false;
           scanButton.classList.remove('is-busy');
+          setBusy(false);
+          photoInput.value = '';
         });
     });
   }
 
   Array.prototype.forEach.call(
     document.querySelectorAll('.captain-select'), toggleAddField);
+  applyRank();
   applyBoardSide();
   applyEnding();
   recalculate();

@@ -37,6 +37,11 @@ difficulty word: Cadet, Ensign, Lieutenant, Commander, Captain, or Admiral.
 If the player's captain name is followed by "(ADV.)", "ADV", or "Advanced",
 the player used the Advanced side of their board. Otherwise assume Basic.
 
+At the Cadet rank there is no opposing bot at all. If the right-hand column is
+entirely blank, has no captain name, or is struck through, set bot_captain to
+null, set every value in "bot" to null, and set bot_difficulty to "Cadet" only
+if the word Cadet actually appears. Do not invent a rank that is not written.
+
 The eight score rows, top to bottom, always in this order:
 1. glory
 2. locations

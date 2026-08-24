@@ -33,6 +33,11 @@ PAGE_SIZE = 20
 
 DIFFICULTIES = ["Cadet", "Ensign", "Lieutenant", "Commander", "Captain", "Admiral"]
 
+# At Cadet there is no opposing bot. There is no opponent captain and no bot
+# column; instead you win by reaching a target score.
+SOLO_RANK = "Cadet"
+SOLO_WIN_SCORE = int(os.environ.get("CC_SOLO_WIN_SCORE", "70"))
+
 # The eight scoring rows, in the order they appear on the printed pad.
 # key, label, whether the bot can score it, and the swatch colour that matches
 # the paper sheet.

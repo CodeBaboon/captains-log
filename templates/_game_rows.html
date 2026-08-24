@@ -5,7 +5,13 @@
           {% else %}row-loss{% endif %}"
    href="{{ url_for('game_detail', game_id=game.id) }}">
   <span class="row-body">
-    <span class="row-title">{{ game.player_captain }} v {{ game.bot_captain }}</span>
+    <span class="row-title">
+      {%- if game.bot_captain -%}
+        {{ game.player_captain }} v {{ game.bot_captain }}
+      {%- else -%}
+        {{ game.player_captain }} solo
+      {%- endif -%}
+    </span>
     <span class="row-sub">
       {{ game.bot_difficulty }} &middot;
       {{ 'Adv' if game.board_side == 'advanced' else 'Basic' }} &middot;
@@ -14,6 +20,8 @@
   </span>
   {% if game.ending == 'burn' %}
     <span class="row-score row-score-burn">Burn</span>
+  {% elif not game.bot_captain %}
+    <span class="row-score">{{ game.p_total }}</span>
   {% else %}
     <span class="row-score">{{ game.p_total }}&ndash;{{ game.b_total }}</span>
   {% endif %}

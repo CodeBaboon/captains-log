@@ -104,6 +104,44 @@ client.post("/games/new", data=form(p_glory=""))
 row = db.list_games(1)[0]
 check("blank cell reads as zero", row["p_glory"] == 0, f"got {row['p_glory']}")
 
+print("\nsolo rank")
+# The base fixture scores 69, one short of the 70 target.
+client.post("/games/new", data=form(bot_difficulty="Cadet", bot_captain="",
+                                    b_glory="18", b_locations="2"))
+row = db.list_games(1)[0]
+check("69 falls short of the target", row["result"] == "loss", f"got {row['result']}")
+check("cadet stores no opponent", row["bot_captain"] == "",
+      f"got {row['bot_captain']!r}")
+check("cadet ignores bot cells", row["b_glory"] is None, f"got {row['b_glory']}")
+check("cadet has no opponent total", row["b_total"] is None)
+check("cadet still scores the player", row["p_total"] == 69, f"got {row['p_total']}")
+
+client.post("/games/new", data=form(bot_difficulty="Cadet", bot_captain="",
+                                    p_glory="5"))
+row = db.list_games(1)[0]
+check("exactly 70 is a win", row["p_total"] == 70 and row["result"] == "win",
+      f"got {row['p_total']} {row['result']}")
+
+client.post("/games/new", data=form(bot_difficulty="Cadet", bot_captain="",
+                                    p_glory="20"))
+row = db.list_games(1)[0]
+check("above the target wins", row["result"] == "win", f"got {row['result']}")
+
+r = client.get("/")
+check("solo game reads as solo in the log", b"solo" in r.data)
+
+detail = client.get(f"/games/{row['id']}")
+check("solo detail shows a single score", b"Win" in detail.data)
+check("solo detail hides the bot row", b"<dt>Bot</dt>" not in detail.data)
+
+r = client.get("/games/new")
+check("form states the target", b"Reach 70 points" in r.data)
+
+client.post("/games/new", data=form(bot_difficulty="Cadet", bot_captain="",
+                                    ending="burn"))
+row = db.list_games(1)[0]
+check("cadet can still burn", row["result"] == "loss" and row["ending"] == "burn")
+
 print("\nvalidation")
 r = client.post("/games/new", data=form(p_glory="banana"), follow_redirects=True)
 check("non-numeric cell rejected", b"not a whole number" in r.data)
@@ -120,6 +158,21 @@ check("empty new captain rejected", b"Enter a name for your captain" in r.data)
 
 r = client.post("/games/new", data=form(played_on="nonsense"), follow_redirects=True)
 check("bad date rejected", b"valid date" in r.data)
+
+r = client.post("/games/new", data=form(bot_difficulty=""), follow_redirects=True)
+check("missing rank rejected", b"Choose a rank" in r.data)
+
+r = client.post("/games/new", data=form(bot_difficulty="Admiral of the Fleet"),
+                follow_redirects=True)
+check("invented rank rejected", b"not a rank" in r.data)
+
+r = client.post("/games/new", data=form(bot_captain=""), follow_redirects=True)
+check("ranked game still needs an opponent", b"Choose the bot" in r.data)
+
+r = client.get("/games/new")
+check("rank has no default", b'<option value="">Choose</option>' in r.data)
+check("lieutenant not preselected",
+      b'value="Lieutenant" selected' not in r.data)
 
 print("\ncaptains")
 client.post("/games/new", data=form(bot_captain="Rebner"))
@@ -155,6 +208,7 @@ check("picked name is canonicalised", row["player_captain"] == "Georgiou",
 print("\nstats and pagination")
 stats = db.stats(1)
 check("games counted", stats["games"] == db.count_games(1))
+check("wins counted", stats["wins"] > 0)
 check("average excludes burn games", stats["avg_points"] is not None)
 
 for i in range(25):

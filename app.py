@@ -187,19 +187,27 @@ def _parse_game_form(form):
         raise ValueError("Enter a valid date.")
 
     player_captain = _resolve_captain(form, "player_captain", "your captain")
-    bot_captain = _resolve_captain(form, "bot_captain", "the bot's captain")
 
     board_side = form.get("board_side")
     if board_side not in ("basic", "advanced"):
         raise ValueError("Choose Basic or Advanced.")
 
     difficulty = form.get("bot_difficulty")
+    if not difficulty:
+        raise ValueError("Choose a rank.")
     if difficulty not in config.DIFFICULTIES:
-        raise ValueError("Choose a bot difficulty.")
+        raise ValueError("That is not a rank.")
+
+    solo = difficulty == config.SOLO_RANK
 
     ending = form.get("ending")
     if ending not in ("resolution", "burn"):
         raise ValueError("Choose how the game ended.")
+
+    # NOT NULL on the column, so a solo game stores an empty string rather than
+    # null. Templates treat the empty string as "no opponent".
+    bot_captain = "" if solo else _resolve_captain(
+        form, "bot_captain", "the bot's captain")
 
     data = {
         "played_on": played_on,
@@ -242,13 +250,22 @@ def _parse_game_form(form):
         data[f"p_{key}"] = value
         p_total += value
 
+    data["p_total"] = p_total
+
+    if solo:
+        # No opponent, so the target score decides it. Hitting it exactly wins.
+        for key in config.BOT_SCORE_KEYS:
+            data[f"b_{key}"] = None
+        data["b_total"] = None
+        data["result"] = "win" if p_total >= config.SOLO_WIN_SCORE else "loss"
+        return data
+
     b_total = 0
     for key in config.BOT_SCORE_KEYS:
         value = cell(f"b_{key}")
         data[f"b_{key}"] = value
         b_total += value
 
-    data["p_total"] = p_total
     data["b_total"] = b_total
     # There are no draws against the bot. Anything short of more points is a loss.
     data["result"] = "win" if p_total > b_total else "loss"
@@ -280,6 +297,7 @@ def new_game():
                 captains=db.list_captains(),
                 boxes=db.BOXES,
                 difficulties=config.DIFFICULTIES,
+                solo_win_score=config.SOLO_WIN_SCORE,
                 rows=config.SCORE_ROWS,
                 game=request.form,
                 today=date.today().isoformat(),
@@ -298,6 +316,7 @@ def new_game():
         captains=db.list_captains(),
         boxes=db.BOXES,
         difficulties=config.DIFFICULTIES,
+        solo_win_score=config.SOLO_WIN_SCORE,
         rows=config.SCORE_ROWS,
         game=None,
         today=date.today().isoformat(),
@@ -337,6 +356,7 @@ def edit_game(game_id):
         captains=db.list_captains(),
         boxes=db.BOXES,
         difficulties=config.DIFFICULTIES,
+        solo_win_score=config.SOLO_WIN_SCORE,
         rows=config.SCORE_ROWS,
         game=game,
         today=date.today().isoformat(),

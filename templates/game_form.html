@@ -85,18 +85,25 @@
       </div>
     </div>
 
-{{ captain_picker('bot_captain', 'Bot',
-                      game['bot_captain'] if game else '', 'Soval') }}
-
     <div class="field">
       <label class="field-label" for="bot_difficulty">Rank</label>
       <select id="bot_difficulty" name="bot_difficulty" required>
-        {% set chosen = game['bot_difficulty'] if game and game['bot_difficulty'] else 'Lieutenant' %}
+        {% set chosen = game['bot_difficulty'] if game else '' %}
+        <option value="">Choose</option>
         {% for level in difficulties %}
           <option value="{{ level }}" {{ 'selected' if level == chosen }}>{{ level }}</option>
         {% endfor %}
       </select>
     </div>
+
+    <div id="bot-captain-wrap">
+{{ captain_picker('bot_captain', 'Bot',
+                      game['bot_captain'] if game else '', 'Soval') }}
+    </div>
+
+    <p id="solo-note" class="solo-note" hidden>
+      Cadet has no opposing bot. Reach {{ solo_win_score }} points to win.
+    </p>
 
     <div class="field">
       <span class="field-label">End</span>
@@ -121,7 +128,7 @@
     <div class="grid-head">
       <span class="grid-spacer"></span>
       <span class="grid-col">You</span>
-      <span class="grid-col">Bot</span>
+      <span class="grid-col grid-col-bot">Bot</span>
     </div>
 
     {% for key, label, bot_scores, colour in rows %}
@@ -151,7 +158,7 @@
     <div class="totals">
       <span class="totals-label">Total</span>
       <span class="totals-value" id="p-total">0</span>
-      <span class="totals-value" id="b-total">0</span>
+      <span class="totals-value totals-bot" id="b-total">0</span>
     </div>
   </div>
 

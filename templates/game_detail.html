@@ -1,7 +1,9 @@
 {% extends "base.html" %}
-{% block title %}{{ game.player_captain }} v {{ game.bot_captain }}{% endblock %}
+{% set matchup = game.player_captain ~ ' v ' ~ game.bot_captain if game.bot_captain
+                 else game.player_captain ~ ' solo' %}
+{% block title %}{{ matchup }}{% endblock %}
 {% block bodyclass %}page-detail{% endblock %}
-{% block heading %}{{ game.player_captain }} v {{ game.bot_captain }}{% endblock %}
+{% block heading %}{{ matchup }}{% endblock %}
 {% block meta %}{{ game.played_on|stardate }}{% endblock %}
 
 {% block content %}
@@ -10,12 +12,15 @@
   {% if game.ending == 'burn' %}
     <span class="verdict-label verdict-burn">The Burn</span>
     <span class="verdict-score">&mdash;</span>
-  {% elif game.result == 'win' %}
-    <span class="verdict-label verdict-win">Win</span>
-    <span class="verdict-score">{{ game.p_total }}&ndash;{{ game.b_total }}</span>
   {% else %}
-    <span class="verdict-label verdict-loss">Loss</span>
-    <span class="verdict-score">{{ game.p_total }}&ndash;{{ game.b_total }}</span>
+    <span class="verdict-label {{ 'verdict-win' if game.result == 'win' else 'verdict-loss' }}">
+      {{ 'Win' if game.result == 'win' else 'Loss' }}
+    </span>
+    {% if game.bot_captain %}
+      <span class="verdict-score">{{ game.p_total }}&ndash;{{ game.b_total }}</span>
+    {% else %}
+      <span class="verdict-score">{{ game.p_total }}</span>
+    {% endif %}
   {% endif %}
 </div>
 
@@ -23,26 +28,30 @@
   <div><dt>Date</dt><dd>{{ game.played_on }}</dd></div>
   <div><dt>You</dt><dd>{{ game.player_captain }}</dd></div>
   <div><dt>Board</dt><dd>{{ 'Advanced' if game.board_side == 'advanced' else 'Basic' }}</dd></div>
-  <div><dt>Bot</dt><dd>{{ game.bot_captain }}</dd></div>
   <div><dt>Rank</dt><dd>{{ game.bot_difficulty }}</dd></div>
+  {% if game.bot_captain %}
+    <div><dt>Bot</dt><dd>{{ game.bot_captain }}</dd></div>
+  {% endif %}
 </dl>
 
 {% if game.ending == 'resolution' %}
-  <div class="grid-head">
+  <div class="grid-head{{ ' no-bot' if not game.bot_captain }}">
     <span class="grid-spacer"></span>
     <span class="grid-col">You</span>
-    <span class="grid-col">Bot</span>
+    {% if game.bot_captain %}<span class="grid-col">Bot</span>{% endif %}
   </div>
 
   {% for key, label, bot_scores, colour in rows %}
-  <div class="readout" style="--swatch: {{ colour }}">
+  <div class="readout{{ ' no-bot' if not game.bot_captain }}" style="--swatch: {{ colour }}">
     <span class="readout-label">{{ label }}</span>
     <span class="readout-value">
       {{ game['p_' ~ key] if game['p_' ~ key] is not none else '—' }}
     </span>
-    <span class="readout-value readout-value-bot">
-      {{ game['b_' ~ key] if bot_scores and game['b_' ~ key] is not none else '—' }}
-    </span>
+    {% if game.bot_captain %}
+      <span class="readout-value readout-value-bot">
+        {{ game['b_' ~ key] if bot_scores and game['b_' ~ key] is not none else '—' }}
+      </span>
+    {% endif %}
   </div>
   {% endfor %}
 
@@ -51,10 +60,12 @@
     <span class="divider-bar bar-gold"></span>
   </div>
 
-  <div class="totals">
+  <div class="totals{{ ' no-bot' if not game.bot_captain }}">
     <span class="totals-label">Total</span>
     <span class="totals-value {{ 'is-winning' if game.result == 'win' }}">{{ game.p_total }}</span>
-    <span class="totals-value {{ 'is-winning' if game.result != 'win' }}">{{ game.b_total }}</span>
+    {% if game.bot_captain %}
+      <span class="totals-value {{ 'is-winning' if game.result == 'loss' }}">{{ game.b_total }}</span>
+    {% endif %}
   </div>
 {% else %}
   <div class="burn-note">

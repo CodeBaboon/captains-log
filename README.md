@@ -12,7 +12,13 @@ Per game: date, your captain, board side, the bot's captain and rank, how the
 game ended, the eight score rows for both sides, computed totals, and the photo
 of the sheet if you scanned one.
 
-Three rules are enforced in `_parse_game_form`:
+Four rules are enforced in `_parse_game_form`:
+
+- **Cadet has no opponent.** At that rank there is no bot, so the bot captain
+  field and the whole bot column disappear. You win by reaching a target score
+  instead, 70 by default and hitting it exactly counts as a win. Override with
+  `CC_SOLO_WIN_SCORE`. The Burn still applies and is still a loss.
+
 
 - **No draws against the bot.** You need strictly more points; equal totals is a
   loss.
@@ -22,6 +28,14 @@ Three rules are enforced in `_parse_game_form`:
   nulls, because you would not have written the scores down.
 
 Card VP accepts negatives, which is how Incidents land in the total.
+
+Rank has no default and must be chosen before a game can be saved, since it
+determines whether there is an opponent at all.
+
+One schema wart: `bot_captain` is `NOT NULL`, so a solo game stores an empty
+string rather than null. Templates treat the empty string as "no opponent".
+Changing the column would mean rebuilding the table on live data, which is not
+worth it for this.
 
 ## Running it locally
 
@@ -134,6 +148,9 @@ unknown captain drops into the add field rather than being discarded.
 prompt describing the fixed row order and your handwriting quirks (slashed
 zeros, the diagonal for not-applicable, leading minus signs), and validates the
 JSON that comes back.
+
+The prompt also covers the Cadet case: an empty right-hand column means no bot,
+and it is told not to invent a rank that is not written on the sheet.
 
 It also sums the rows it read and compares that against the total written on the
 sheet. A mismatch is surfaced as a warning above the form rather than silently
