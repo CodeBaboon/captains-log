@@ -162,11 +162,12 @@ and the shapes are directly comparable. The raw average sits at the right so
 the magnitude that normalising discards is still visible.
 
 Sample sizes are spelled out rather than using n-notation: the scoring shape
-panel says "5 games" and the win rate panel shows the record as "3-0" beneath
-the percentage, so both the rate and the sample behind it are readable without
-knowing what n means.
+panel says "5 games", and the win rate panel puts the record inside the bar
+itself, so the bar length carries the rate and the label carries the sample.
+When the bar is too short to hold its label, the label sits just past the end.
 
-Captains with fewer than two games are suppressed. Negative Card VP is clamped
+Every captain with a scored game appears, including one-game captains, since
+the game count travels with each row. Negative Card VP is clamped
 to zero for the width calculation only — a negative slice has no sensible width
 — while the reported average stays truthful.
 

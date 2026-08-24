@@ -110,8 +110,11 @@ def category_averages(rows, perspective):
     return out
 
 
-def composition_by_captain(rows, perspective, min_games=2):
+def composition_by_captain(rows, perspective, min_games=1):
     """What share of each captain's average total comes from each category.
+
+    Every captain with at least one scored game appears; the game count travels
+    with the row so a single game is never mistaken for an established pattern.
 
     Shares are used rather than raw averages because averages do not sum:
     stacking one captain's 20 on another's 14 describes no real game. Shares do

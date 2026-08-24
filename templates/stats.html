@@ -202,7 +202,6 @@
 {% if compositions %}
 <section class="panel">
   <h2 class="panel-title">Scoring shape by captain</h2>
-  <p class="panel-sub">Share of each captain's average total, two games minimum</p>
   {% for entry in compositions %}
     <div class="mrow">
       <span class="mrow-label">{{ entry.captain }}</span>
@@ -233,22 +232,24 @@
 
 <section class="panel">
   <h2 class="panel-title">{{ 'Your' if perspective == 'you' else "The bot's" }} win rate by rank</h2>
-  <p class="panel-sub">Sample size shown, since these are small</p>
   {% for entry in ranks %}
-    <div class="mrow {{ 'mrow-empty' if not entry.games }}">
+    {% set losses = entry.games - entry.wins %}
+    <div class="mrow mrow-wide {{ 'mrow-empty' if not entry.games }}">
       <span class="mrow-label">{{ entry.rank }}</span>
       <span class="mrow-track">
         {% if entry.games %}
           <span class="mrow-fill" style="width: {{ entry.percent }}%;
-                       background: {{ '#99CC99' if entry.percent >= 50 else '#CC6666' }}"></span>
-        {% endif %}
-      </span>
-      <span class="mrow-value">
-        {% if entry.games %}
-          {{ entry.percent }}%
-          <span class="mrow-other">{{ entry.wins }}&ndash;{{ entry.games - entry.wins }}</span>
+                       background: {{ '#99CC99' if entry.percent >= 50 else '#CC6666' }}">
+            {%- if entry.percent >= 26 -%}
+              <span class="bar-label bar-label-in">{{ entry.wins }}&ndash;{{ losses }}</span>
+            {%- endif -%}
+          </span>
+          {% if entry.percent < 26 %}
+            <span class="bar-label bar-label-out"
+                  style="left: {{ entry.percent }}%">{{ entry.wins }}&ndash;{{ losses }}</span>
+          {% endif %}
         {% else %}
-          <span class="mrow-other">No games</span>
+          <span class="bar-label bar-label-out" style="left: 0">No games</span>
         {% endif %}
       </span>
     </div>

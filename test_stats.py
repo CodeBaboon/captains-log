@@ -142,13 +142,21 @@ for entry in comps:
           f"got {total}")
 
 singleton = analytics.composition_by_captain(rows, "you", min_games=99)
-check("thin captains suppressed", singleton == [])
+check("min_games still filters when asked", singleton == [])
+
+solo_rows = db.filtered_games(1, captains=["Kirk"])
+one_game = analytics.composition_by_captain(solo_rows[:1], "you")
+check("a single game still appears", len(one_game) == 1, f"got {len(one_game)}")
+check("single game reports its count", one_game and one_game[0]["games"] == 1)
 
 print("\npresentation")
 r = client.get("/stats")
 check("panel renamed", b"Point breakdown" in r.data)
 check("n-notation gone from the page", b">n0<" not in r.data and b" n2<" not in r.data)
 check("win rate shows a record", b"No games" in r.data)
+check("win rate has no value column", b'mrow-wide' in r.data)
+check("subtitles removed", b"two games minimum" not in r.data
+      and b"Sample size shown" not in r.data)
 check("captain picker starts closed", b"<details class=\"picker\">" in r.data)
 
 r = client.get("/stats?captain=Kirk")
