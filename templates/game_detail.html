@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}{{ game.player_captain }} v {{ game.bot_captain }}{% endblock %}
+{% block bodyclass %}page-detail{% endblock %}
+{% block heading %}{{ game.player_captain }} v {{ game.bot_captain }}{% endblock %}
+{% block meta %}{{ game.played_on|stardate }}{% endblock %}
+
+{% block content %}
+
+<div class="verdict">
+  {% if game.ending == 'burn' %}
+    <span class="verdict-label verdict-burn">The Burn</span>
+    <span class="verdict-score">&mdash;</span>
+  {% elif game.result == 'win' %}
+    <span class="verdict-label verdict-win">Win</span>
+    <span class="verdict-score">{{ game.p_total }}&ndash;{{ game.b_total }}</span>
+  {% else %}
+    <span class="verdict-label verdict-loss">Loss</span>
+    <span class="verdict-score">{{ game.p_total }}&ndash;{{ game.b_total }}</span>
+  {% endif %}
+</div>
+
+<dl class="meta-list">
+  <div><dt>Date</dt><dd>{{ game.played_on }}</dd></div>
+  <div><dt>You</dt><dd>{{ game.player_captain }}</dd></div>
+  <div><dt>Board</dt><dd>{{ 'Advanced' if game.board_side == 'advanced' else 'Basic' }}</dd></div>
+  <div><dt>Bot</dt><dd>{{ game.bot_captain }}</dd></div>
+  <div><dt>Rank</dt><dd>{{ game.bot_difficulty }}</dd></div>
+</dl>
+
+{% if game.ending == 'resolution' %}
+  <div class="grid-head">
+    <span class="grid-spacer"></span>
+    <span class="grid-col">You</span>
+    <span class="grid-col">Bot</span>
+  </div>
+
+  {% for key, label, bot_scores, colour in rows %}
+  <div class="readout" style="--swatch: {{ colour }}">
+    <span class="readout-label">{{ label }}</span>
+    <span class="readout-value">
+      {{ game['p_' ~ key] if game['p_' ~ key] is not none else '—' }}
+    </span>
+    <span class="readout-value readout-value-bot">
+      {{ game['b_' ~ key] if bot_scores and game['b_' ~ key] is not none else '—' }}
+    </span>
+  </div>
+  {% endfor %}
+
+  <div class="divider divider-foot" aria-hidden="true">
+    <span class="divider-cap cap-mauve"></span>
+    <span class="divider-bar bar-gold"></span>
+  </div>
+
+  <div class="totals">
+    <span class="totals-label">Total</span>
+    <span class="totals-value {{ 'is-winning' if game.result == 'win' }}">{{ game.p_total }}</span>
+    <span class="totals-value {{ 'is-winning' if game.result != 'win' }}">{{ game.b_total }}</span>
+  </div>
+{% else %}
+  <div class="burn-note">
+    The Incident deck emptied, so this one goes down as a loss with no score.
+  </div>
+{% endif %}
+
+{% if game.notes %}<div class="notes">{{ game.notes }}</div>{% endif %}
+
+{% if game.photo_path %}
+  <img class="sheet-photo" alt="Photograph of the scoresheet"
+       src="{{ url_for('photo', name=game.photo_path) }}">
+{% endif %}
+
+<div class="detail-actions">
+  <a class="btn btn-ghost" href="{{ url_for('edit_game', game_id=game.id) }}">Edit</a>
+  <form method="post" action="{{ url_for('remove_game', game_id=game.id) }}"
+        onsubmit="return confirm('Delete this game for good?');">
+    <button class="btn btn-quiet" type="submit">Delete</button>
+  </form>
+</div>
+
+<a class="btn btn-quiet btn-block" href="{{ url_for('log') }}">Back to the log</a>
+
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Captain's log{% endblock %}
+{% block bodyclass %}page-log{% endblock %}
+{% block heading %}Captain's log{% endblock %}
+{% block meta %}{{ stats.games }} record{{ '' if stats.games == 1 else 's' }}{% endblock %}
+
+{% block content %}
+
+<div class="stat-strip">
+  <div class="stat">
+    <span class="stat-label">Games</span>
+    <span class="stat-value">{{ stats.games }}</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Wins</span>
+    <span class="stat-value">{{ stats.wins }}</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Avg pts</span>
+    <span class="stat-value">{{ stats.avg_points if stats.avg_points is not none else '—' }}</span>
+  </div>
+</div>
+
+<a class="btn btn-primary btn-block" href="{{ url_for('new_game') }}">Log a game</a>
+
+{% if games %}
+  <div id="game-rows" class="rows">
+    {% include "_game_rows.html" %}
+  </div>
+
+  <div class="divider divider-foot" aria-hidden="true">
+    <span class="divider-cap cap-rose"></span>
+    <span class="divider-bar bar-mauve"></span>
+  </div>
+
+  {% if has_more %}
+    <button id="load-more" class="btn btn-ghost btn-block"
+            data-offset="{{ next_offset }}">Load more</button>
+  {% endif %}
+{% else %}
+  <div class="empty">
+    <p class="empty-title">No games yet</p>
+    <p class="empty-body">Log your first game and it will show up here.</p>
+  </div>
+{% endif %}
+
+<form class="logout" method="post" action="{{ url_for('logout') }}">
+  <button class="btn btn-quiet" type="submit">Sign out</button>
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var button = document.getElementById('load-more');
+  if (!button) return;
+
+  button.addEventListener('click', function () {
+    var offset = button.dataset.offset;
+    button.disabled = true;
+    button.textContent = 'Loading';
+
+    fetch('/log/page?offset=' + encodeURIComponent(offset))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        document.getElementById('game-rows')
+          .insertAdjacentHTML('beforeend', data.html);
+        if (data.has_more) {
+          button.dataset.offset = data.next_offset;
+          button.disabled = false;
+          button.textContent = 'Load more';
+        } else {
+          button.remove();
+        }
+      })
+      .catch(function () {
+        button.disabled = false;
+        button.textContent = 'Try again';
+      });
+  });
+})();
+</script>
+{% endblock %}

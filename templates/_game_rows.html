@@ -1,0 +1,21 @@
+{% for game in games %}
+<a class="row row-link
+          {% if game.ending == 'burn' %}row-burn
+          {% elif game.result == 'win' %}row-win
+          {% else %}row-loss{% endif %}"
+   href="{{ url_for('game_detail', game_id=game.id) }}">
+  <span class="row-body">
+    <span class="row-title">{{ game.player_captain }} v {{ game.bot_captain }}</span>
+    <span class="row-sub">
+      {{ game.bot_difficulty }} &middot;
+      {{ 'Adv' if game.board_side == 'advanced' else 'Basic' }} &middot;
+      {{ game.played_on|prettydate }}
+    </span>
+  </span>
+  {% if game.ending == 'burn' %}
+    <span class="row-score row-score-burn">Burn</span>
+  {% else %}
+    <span class="row-score">{{ game.p_total }}&ndash;{{ game.b_total }}</span>
+  {% endif %}
+</a>
+{% endfor %}

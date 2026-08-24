@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% set editing = mode == 'edit' %}
+{% block title %}{{ 'Edit game' if editing else 'New game' }}{% endblock %}
+{% block bodyclass %}page-form{% endblock %}
+{% block heading %}{{ 'Edit game' if editing else 'New game' }}{% endblock %}
+{% block meta %}<span id="stardate-out"></span>{% endblock %}
+
+{% macro val(field, fallback='') -%}
+{{ game[field] if game and game[field] is not none else fallback }}
+{%- endmacro %}
+
+{% block content %}
+
+<form id="game-form" method="post" enctype="multipart/form-data"
+      action="{{ url_for('game_detail', game_id=game.id) if editing else url_for('new_game') }}">
+
+  {% if not editing %}
+  <div class="scan">
+    <input type="file" id="photo" name="photo" accept="image/*" capture="environment" hidden>
+    <button type="button" id="scan-button" class="scan-tile">
+      <span class="scan-icon" aria-hidden="true">&#9635;</span>
+      <span class="scan-label">Scan scoresheet</span>
+      <span class="scan-hint">or fill it in below</span>
+    </button>
+    <div id="scan-status" class="scan-status" role="status" aria-live="polite"></div>
+  </div>
+  {% endif %}
+
+  <div class="fields">
+
+    <div class="field">
+      <label class="field-label" for="played_on">Date</label>
+      <input type="date" id="played_on" name="played_on"
+             value="{{ val('played_on', today) }}" required>
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="player_captain">You</label>
+      <input type="text" id="player_captain" name="player_captain" list="captain-list"
+             value="{{ val('player_captain') }}" placeholder="Georgiou"
+             autocomplete="off" required>
+    </div>
+
+    <div class="field">
+      <span class="field-label">Board</span>
+      <div class="pills" role="radiogroup" aria-label="Board side">
+        {% set side = game['board_side'] if game and game['board_side'] else 'advanced' %}
+        <label class="pill pill-mauve">
+          <input type="radio" name="board_side" value="advanced"
+                 {{ 'checked' if side == 'advanced' }}>
+          <span>Advanced</span>
+        </label>
+        <label class="pill pill-mauve">
+          <input type="radio" name="board_side" value="basic"
+                 {{ 'checked' if side == 'basic' }}>
+          <span>Basic</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="bot_captain">Bot</label>
+      <input type="text" id="bot_captain" name="bot_captain" list="captain-list"
+             value="{{ val('bot_captain') }}" placeholder="Soval"
+             autocomplete="off" required>
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="bot_difficulty">Rank</label>
+      <select id="bot_difficulty" name="bot_difficulty" required>
+        {% set chosen = game['bot_difficulty'] if game and game['bot_difficulty'] else 'Lieutenant' %}
+        {% for level in difficulties %}
+          <option value="{{ level }}" {{ 'selected' if level == chosen }}>{{ level }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <span class="field-label">End</span>
+      <div class="pills" role="radiogroup" aria-label="How the game ended">
+        {% set ending = game['ending'] if game and game['ending'] else 'resolution' %}
+        <label class="pill pill-blue">
+          <input type="radio" name="ending" value="resolution"
+                 {{ 'checked' if ending == 'resolution' }}>
+          <span>Resolution</span>
+        </label>
+        <label class="pill pill-rose">
+          <input type="radio" name="ending" value="burn"
+                 {{ 'checked' if ending == 'burn' }}>
+          <span>Burn</span>
+        </label>
+      </div>
+    </div>
+
+  </div>
+
+  <datalist id="captain-list">
+    {% for captain in captains %}<option value="{{ captain.name }}">{% endfor %}
+  </datalist>
+
+  <div id="score-block">
+    <div class="grid-head">
+      <span class="grid-spacer"></span>
+      <span class="grid-col">You</span>
+      <span class="grid-col">Bot</span>
+    </div>
+
+    {% for key, label, bot_scores, colour in rows %}
+    <div class="grid-row {{ 'row-mission' if key == 'mission' }}"
+         style="--swatch: {{ colour }}">
+      <label class="grid-label" for="p_{{ key }}">{{ label }}</label>
+      <input class="cell cell-player" type="text" inputmode="numeric"
+             id="p_{{ key }}" name="p_{{ key }}"
+             value="{{ val('p_' ~ key) }}" placeholder="0"
+             autocomplete="off">
+      {% if bot_scores %}
+        <input class="cell cell-bot" type="text" inputmode="numeric"
+               id="b_{{ key }}" name="b_{{ key }}"
+               value="{{ val('b_' ~ key) }}" placeholder="0"
+               autocomplete="off">
+      {% else %}
+        <span class="cell cell-na" aria-label="Not applicable to the bot">&mdash;</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    <div class="divider divider-foot" aria-hidden="true">
+      <span class="divider-cap cap-mauve"></span>
+      <span class="divider-bar bar-gold"></span>
+    </div>
+
+    <div class="totals">
+      <span class="totals-label">Total</span>
+      <span class="totals-value" id="p-total">0</span>
+      <span class="totals-value" id="b-total">0</span>
+    </div>
+  </div>
+
+  <div id="burn-note" class="burn-note" hidden>
+    The Incident deck emptied, so this one goes down as a loss with no score.
+  </div>
+
+  <button class="btn btn-primary btn-block" type="submit">
+    {{ 'Save changes' if editing else 'Save game' }}
+  </button>
+
+  <a class="btn btn-quiet btn-block" href="{{ url_for('game_detail', game_id=game.id) if editing else url_for('log') }}">Cancel</a>
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='form.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}First run{% endblock %}
+{% block heading %}First run{% endblock %}
+{% block meta %}Create account{% endblock %}
+
+{% block content %}
+<p class="auth-note">No account exists yet. Create one now. This page stops working
+as soon as the first account is made.</p>
+
+<form class="auth" method="post">
+  <div class="field">
+    <label class="field-label" for="username">Name</label>
+    <input type="text" id="username" name="username" autocomplete="username" required autofocus>
+  </div>
+  <div class="field">
+    <label class="field-label" for="password">Password</label>
+    <input type="password" id="password" name="password" autocomplete="new-password"
+           minlength="8" required>
+  </div>
+  <button class="btn btn-primary btn-block" type="submit">Create account</button>
+</form>
+{% endblock %}

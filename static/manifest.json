@@ -1,0 +1,10 @@
+{
+  "name": "Captain's Log",
+  "short_name": "Captain's Log",
+  "description": "Solo game log for Star Trek: Captain's Chair",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait"
+}
