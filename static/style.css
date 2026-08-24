@@ -54,6 +54,10 @@ body {
 
 .lcars-title {
   margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 26px;
   font-weight: 500;
   line-height: 1;
@@ -64,6 +68,8 @@ body {
 
 .masthead-meta {
   margin-left: auto;
+  flex: none;
+  white-space: nowrap;
   font-size: 12px;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -1014,3 +1020,75 @@ select {
 
 .bar-label-on-fill { color: #14210F; }
 .bar-label-on-track { color: var(--text-dim); }
+
+/* --- Captain detail ---------------------------------------------------- */
+
+/* A diverging track: zero sits at the centre and bars grow either way. */
+.dtrack {
+  flex: 1;
+  min-width: 0;
+  height: 16px;
+  position: relative;
+  background: #1F1F1F;
+  border-radius: 3px;
+}
+
+.dzero {
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: #4A4A4A;
+}
+
+.dfill { position: absolute; top: 0; height: 16px; }
+.dfill-up { background: var(--lcars-gold); border-radius: 0 3px 3px 0; }
+.dfill-down { background: var(--lcars-rose); border-radius: 3px 0 0 3px; }
+
+.delta-up { color: var(--lcars-gold); }
+.delta-down { color: var(--lcars-rose); }
+
+.ladder { display: flex; gap: 4px; }
+
+.rung {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+  padding: 7px 2px;
+  border-radius: 4px;
+  background: #1F1F1F;
+}
+
+.rung-name {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #04342C;
+}
+
+.rung-record {
+  display: block;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: #04342C;
+}
+
+.rung-empty .rung-name,
+.rung-empty .rung-record { color: var(--text-dim); }
+
+.rows-flush .row:last-child { margin-bottom: 0; }
+
+/* The captain name on the stats page links through to its own screen. */
+.mrow-link {
+  color: var(--lcars-gold);
+  text-decoration: none;
+}
+
+.mrow-link:hover { color: var(--lcars-orange); text-decoration: underline; }
+
+.mrow-link:focus-visible {
+  outline: 2px solid var(--lcars-orange);
+  outline-offset: 2px;
+}

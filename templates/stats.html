@@ -203,7 +203,11 @@
   <h2 class="panel-title">Scoring shape by captain</h2>
   {% for entry in compositions %}
     <div class="mrow">
-      <span class="mrow-label">{{ entry.captain }}</span>
+      <span class="mrow-label">
+        <a class="mrow-link"
+           href="{{ url_for('captain_page', name=entry.captain, side=perspective) }}"
+        >{{ entry.captain }}</a>
+      </span>
       <span class="shape">
         {% for seg in entry.segments %}
           <span class="shape-seg" style="width: {{ seg.share }}%; background: {{ seg.colour }}"

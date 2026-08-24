@@ -172,6 +172,28 @@ the game count travels with each row. Negative Card VP is clamped
 to zero for the width calculation only — a negative slice has no sensible width
 — while the reported average stays truthful.
 
+## Captain detail
+
+At `/captain/<name>`, reached by clicking a captain in the scoring shape panel.
+The perspective carries through in the link, so clicking a captain while in bot
+view shows their games as the bot.
+
+Four panels. Three are filtered views of what the stats page already computes:
+headline numbers, record against each opponent, and a rank ladder. The one that
+earns the page is **against your baseline**.
+
+That panel shows each category as points above or below your average across
+every captain. Absolute averages cannot answer "what is different about this
+captain" without holding your overall numbers in your head; the difference can.
+Bars diverge from a centre line, the largest swing fills half the track, and the
+raw average sits beneath each figure so the magnitude is not lost.
+
+Solo games collect under their own heading in the opponent list rather than
+being dropped, and sort last since they are not really a matchup.
+
+A captain with no games returns 404 rather than an empty page, since there is
+nothing to say about a captain you have never played.
+
 ## Backups
 
 Everything lives under `CC_DATA_DIR`: `captains_log.db` plus a `photos/`

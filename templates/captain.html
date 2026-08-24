@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}{{ name }}{% endblock %}
+{% block bodyclass %}page-captain{% endblock %}
+{% block heading %}{{ name }}{% endblock %}
+{% block meta %}{{ box or ('As the bot' if perspective == 'bot' else '') }}{% endblock %}
+
+{% block content %}
+
+{% if perspective == 'bot' %}
+  <p class="solo-note">Showing games where the bot played {{ name }}.</p>
+{% endif %}
+
+<div class="stat-strip">
+  <div class="stat">
+    <span class="stat-label">Games</span>
+    <span class="stat-value">{{ summary.games }}</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Record</span>
+    <span class="stat-value">{{ summary.wins }}&ndash;{{ summary.losses }}</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Avg pts</span>
+    <span class="stat-value">{{ summary.avg_points if summary.avg_points is not none else '—' }}</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Best</span>
+    <span class="stat-value">{{ summary.best if summary.best is not none else '—' }}</span>
+  </div>
+</div>
+
+{% if opponents %}
+<section class="panel">
+  <h2 class="panel-title">Record against each {{ 'bot' if perspective == 'you' else 'captain' }}</h2>
+  {% for entry in opponents %}
+    <div class="mrow mrow-wide">
+      <span class="mrow-label">{{ entry.opponent }}</span>
+      <span class="mrow-track">
+        <span class="mrow-fill" style="width: {{ entry.percent }}%;
+                     background: {{ '#99CC99' if entry.percent >= 50 else '#CC6666' }}"></span>
+        <span class="bar-label {{ 'bar-label-on-fill' if entry.percent >= 90
+                                  else 'bar-label-on-track' }}">
+          {{- entry.wins }}&ndash;{{ entry.losses -}}
+        </span>
+      </span>
+    </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if deltas %}
+<section class="panel">
+  <h2 class="panel-title">Against your baseline</h2>
+  <p class="panel-sub">Points above or below your average across all captains</p>
+  {% for entry in deltas %}
+    <div class="mrow">
+      <span class="mrow-label">{{ entry.label }}</span>
+      <span class="dtrack">
+        <span class="dzero"></span>
+        {% if entry.delta >= 0 %}
+          <span class="dfill dfill-up" style="left: 50%; width: {{ entry.width }}%"></span>
+        {% else %}
+          <span class="dfill dfill-down"
+                style="right: 50%; width: {{ entry.width }}%"></span>
+        {% endif %}
+      </span>
+      <span class="mrow-value">
+        <span class="{{ 'delta-up' if entry.delta >= 0 else 'delta-down' }}">
+          {{- '+' if entry.delta > 0 }}{{ entry.delta -}}
+        </span>
+        <span class="mrow-other">{{ entry.average }} avg</span>
+      </span>
+    </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="panel">
+  <h2 class="panel-title">How far up the ranks</h2>
+  <div class="ladder">
+    {% for step in ladder %}
+      <div class="rung {{ 'rung-empty' if not step.games }}"
+           style="{% if step.games %}background: {{
+             '#5DCAA5' if step.percent >= 67 else
+             ('#9FE1CB' if step.percent >= 34 else '#F09595') }}{% endif %}">
+        <span class="rung-name">{{ step.short }}</span>
+        <span class="rung-record">
+          {%- if step.games %}{{ step.wins }}&ndash;{{ step.losses }}{% else %}&mdash;{% endif -%}
+        </span>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="panel">
+  <h2 class="panel-title">Recent games</h2>
+  <div class="rows rows-flush">
+    {% include "_game_rows.html" %}
+  </div>
+  {% if total_games > games | length %}
+    <p class="panel-thin">Showing {{ games | length }} of {{ total_games }}.</p>
+  {% endif %}
+</section>
+
+<a class="btn btn-quiet btn-block"
+   href="{{ url_for('stats_page', side=perspective) }}">Back to stats</a>
+
+{% endblock %}

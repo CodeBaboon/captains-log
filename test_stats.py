@@ -187,6 +187,80 @@ geo = analytics.trend_geometry(spread)
 check("multi month labels are months", geo["first_label"] == "JUN"
       and geo["last_label"] == "AUG", f"{geo['first_label']} / {geo['last_label']}")
 
+print("\ncaptain detail")
+r = client.get("/stats")
+check("captain names link through", b"/captain/" in r.data)
+
+r = client.get("/captain/Georgiou")
+check("detail page renders", r.status_code == 200 and b"Against your baseline" in r.data)
+check("detail shows the box", b"To Boldly Go" in r.data)
+check("detail lists opponents", b"Record against each bot" in r.data)
+check("detail shows the ladder", b"How far up the ranks" in r.data)
+check("detail shows recent games", b"Recent games" in r.data)
+
+r = client.get("/captain/georgiou")
+check("lookup is case-insensitive", r.status_code == 200)
+
+r = client.get("/captain/Janeway")
+check("unknown captain is a 404", r.status_code == 404)
+
+r = client.get("/captain/Rebner")
+check("known but unplayed captain is a 404", r.status_code == 404)
+
+rows = db.filtered_games(1, captains=["Georgiou"])
+opps = analytics.record_vs_opponents(rows, "you")
+check("opponents grouped", len(opps) > 0)
+check("opponent games sum to total",
+      sum(o["games"] for o in opps) == len(rows),
+      f"{sum(o['games'] for o in opps)} vs {len(rows)}")
+check("wins and losses sum per opponent",
+      all(o["wins"] + o["losses"] == o["games"] for o in opps))
+check("solo bucketed separately", any(o["opponent"] == "Solo" for o in opps))
+check("solo sorted last", opps[-1]["opponent"] == "Solo")
+
+deltas = analytics.baseline_delta(rows, db.filtered_games(1), "you")
+check("baseline produced", len(deltas) > 0)
+check("deltas sorted high to low",
+      all(deltas[i]["delta"] >= deltas[i + 1]["delta"] for i in range(len(deltas) - 1)))
+check("widths stay within half the track",
+      all(0 <= d["width"] <= 50 for d in deltas))
+check("largest swing fills its side",
+      abs(max(d["width"] for d in deltas) - 50) < 0.1)
+check("delta equals average minus baseline",
+      all(abs(d["delta"] - round(d["average"] - d["baseline"], 1)) < 0.15 for d in deltas),
+      str([(d["key"], d["delta"], d["average"], d["baseline"]) for d in deltas][:2]))
+
+only = analytics.baseline_delta(rows, rows, "you")
+check("comparing against itself gives zero",
+      all(abs(d["delta"]) < 0.001 for d in only))
+check("all-zero deltas do not divide by zero",
+      all(d["width"] == 0 for d in only))
+
+check("empty baseline returns nothing", analytics.baseline_delta([], [], "you") == [])
+
+ladder = analytics.rank_ladder(rows, "you")
+check("ladder covers every rank", len(ladder) == len(config.DIFFICULTIES))
+check("ranks abbreviate readably",
+      [s["short"] for s in ladder] == ["Cadet", "Ensign", "Lt", "Cmdr", "Capt", "Adm"],
+      str([s["short"] for s in ladder]))
+check("unplayed rungs carry no percent",
+      all(s["percent"] is None for s in ladder if s["games"] == 0))
+
+bot_ladder = analytics.rank_ladder(rows, "bot")
+check("bot ladder drops cadet",
+      config.SOLO_RANK not in [s["rank"] for s in bot_ladder])
+
+r = client.get("/captain/Soval?side=bot")
+check("bot perspective detail works", r.status_code == 200)
+check("bot perspective explains itself", b"the bot played" in r.data)
+
+r = client.get("/captain/Soval")
+check("a bot-only captain is not a player captain", r.status_code == 404)
+
+other = app.test_client()
+check("detail needs a login",
+      b"Sign in" in other.get("/captain/Georgiou", follow_redirects=True).data)
+
 print("\nedge cases")
 game(played_on="2026-08-10", player_captain="Khan", p_card_vp=-30, p_glory=1,
      p_locations=0, p_endgame=0, p_research=0, p_influence=0, p_military=0,

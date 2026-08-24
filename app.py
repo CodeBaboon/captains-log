@@ -215,6 +215,46 @@ def stats_page():
     )
 
 
+@app.get("/captain/<name>")
+@login_required
+def captain_page(name):
+    perspective = request.args.get("side")
+    if perspective not in ("you", "bot"):
+        perspective = "you"
+
+    canonical = db.captain_exists(name)
+    field = "player_captain" if perspective == "you" else "bot_captain"
+    counts = db.captain_counts(g.user["id"], field)
+
+    # Fall back to the name as logged, so a captain removed from the list can
+    # still be looked at.
+    if not canonical:
+        canonical = next((n for n in counts if n.lower() == name.lower()), None)
+    if not canonical:
+        abort(404)
+
+    rows = db.filtered_games(g.user["id"], perspective=perspective,
+                             captains=[canonical])
+    if not rows:
+        abort(404)
+
+    everything = db.filtered_games(g.user["id"], perspective=perspective)
+    box = next((c["box"] for c in db.list_captains() if c["name"] == canonical), None)
+
+    return render_template(
+        "captain.html",
+        name=canonical,
+        box=box,
+        perspective=perspective,
+        summary=analytics.summary(rows, perspective),
+        opponents=analytics.record_vs_opponents(rows, perspective),
+        deltas=analytics.baseline_delta(rows, everything, perspective),
+        ladder=analytics.rank_ladder(rows, perspective),
+        games=rows[:8],
+        total_games=len(rows),
+    )
+
+
 # --------------------------------------------------------------------------
 # Game entry
 # --------------------------------------------------------------------------

@@ -36,6 +36,16 @@ DIFFICULTIES = ["Cadet", "Ensign", "Lieutenant", "Commander", "Captain", "Admira
 # At Cadet there is no opposing bot. There is no opponent captain and no bot
 # column; instead you win by reaching a target score.
 SOLO_RANK = "Cadet"
+
+# Used where a rank has to fit a narrow column.
+RANK_SHORT = {
+    "Cadet": "Cadet",
+    "Ensign": "Ensign",
+    "Lieutenant": "Lt",
+    "Commander": "Cmdr",
+    "Captain": "Capt",
+    "Admiral": "Adm",
+}
 SOLO_WIN_SCORE = int(os.environ.get("CC_SOLO_WIN_SCORE", "70"))
 
 # The eight scoring rows, in the order they appear on the printed pad.

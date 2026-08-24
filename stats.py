@@ -279,3 +279,102 @@ def trend_geometry(points, width=340, height=90, pad_left=26, pad_bottom=16):
         "last_label": label(last),
         "pad_left": pad_left,
     }
+
+
+def record_vs_opponents(rows, perspective):
+    """Win-loss record against each captain faced.
+
+    Solo games have no opponent, so they collect under their own heading rather
+    than being dropped.
+    """
+    opponent_field = "bot_captain" if perspective == "you" else "player_captain"
+
+    grouped = {}
+    for row in rows:
+        name = row[opponent_field] or "Solo"
+        bucket = grouped.setdefault(name, {"wins": 0, "games": 0})
+        bucket["games"] += 1
+        won = row["result"] == "win" if perspective == "you" else row["result"] == "loss"
+        if won:
+            bucket["wins"] += 1
+
+    out = [
+        {
+            "opponent": name,
+            "wins": data["wins"],
+            "losses": data["games"] - data["wins"],
+            "games": data["games"],
+            "percent": round(data["wins"] / data["games"] * 100),
+        }
+        for name, data in grouped.items()
+    ]
+    # Most played first; Solo sinks to the bottom since it is not a matchup.
+    out.sort(key=lambda o: (o["opponent"] == "Solo", -o["games"], o["opponent"]))
+    return out
+
+
+def baseline_delta(captain_rows, all_rows, perspective):
+    """How this captain's scoring differs from your average across all captains.
+
+    Absolute averages cannot answer "what is different about this captain"
+    without holding your overall numbers in your head. The difference can.
+    """
+    mine = _prefix(perspective)
+    played = scored_games(captain_rows)
+    everything = scored_games(all_rows)
+    if not played or not everything:
+        return []
+
+    out = []
+    for key in score_keys(perspective):
+        own = [r[mine + key] for r in played if r[mine + key] is not None]
+        base = [r[mine + key] for r in everything if r[mine + key] is not None]
+        if not own or not base:
+            continue
+
+        delta = sum(own) / len(own) - sum(base) / len(base)
+        out.append({
+            "key": key,
+            "label": ROW_LABELS[key],
+            "colour": ROW_COLOURS[key],
+            "delta": round(delta, 1),
+            "average": round(sum(own) / len(own), 1),
+            "baseline": round(sum(base) / len(base), 1),
+        })
+
+    out.sort(key=lambda d: d["delta"], reverse=True)
+
+    widest = max((abs(d["delta"]) for d in out), default=0)
+    for entry in out:
+        # Each half of the track is 50% wide, so the largest swing fills one side.
+        entry["width"] = round(abs(entry["delta"]) / widest * 50, 1) if widest else 0
+    return out
+
+
+def rank_ladder(rows, perspective):
+    """Record at each rank, as a progress ladder rather than a chart."""
+    buckets = {rank: {"wins": 0, "games": 0} for rank in config.DIFFICULTIES}
+    for row in rows:
+        rank = row["bot_difficulty"]
+        if rank not in buckets:
+            continue
+        buckets[rank]["games"] += 1
+        won = row["result"] == "win" if perspective == "you" else row["result"] == "loss"
+        if won:
+            buckets[rank]["wins"] += 1
+
+    out = []
+    for rank in config.DIFFICULTIES:
+        if perspective == "bot" and rank == config.SOLO_RANK:
+            continue
+        data = buckets[rank]
+        percent = round(data["wins"] / data["games"] * 100) if data["games"] else None
+        out.append({
+            "rank": rank,
+            "short": config.RANK_SHORT.get(rank, rank),
+            "wins": data["wins"],
+            "losses": data["games"] - data["wins"],
+            "games": data["games"],
+            "percent": percent,
+        })
+    return out
