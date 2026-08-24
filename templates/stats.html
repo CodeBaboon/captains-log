@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block title %}Stats{% endblock %}
+{% block bodyclass %}page-stats{% endblock %}
+{% block heading %}Stats{% endblock %}
+{% block meta %}{{ shown }} of {{ available }} games{% endblock %}
+
+{% block content %}
+
+<form id="filters" method="get" action="{{ url_for('stats_page') }}">
+
+  <div class="field">
+    <span class="field-label">Show</span>
+    <div class="pills" role="radiogroup" aria-label="Whose scores to show">
+      <label class="pill pill-blue">
+        <input type="radio" name="side" value="you"
+               {{ 'checked' if perspective == 'you' }}>
+        <span>You</span>
+      </label>
+      <label class="pill pill-blue">
+        <input type="radio" name="side" value="bot"
+               {{ 'checked' if perspective == 'bot' }}>
+        <span>Bot</span>
+      </label>
+    </div>
+  </div>
+
+  <details class="picker" {{ 'open' if chosen_captains }}>
+    <summary>
+      <span class="picker-summary">
+      <span class="field-label">Captain</span>
+      <span class="picker-value">
+        {%- if not chosen_captains -%}
+          All
+        {%- elif chosen_captains | length <= 2 -%}
+          {{ chosen_captains | join(', ') }}
+        {%- else -%}
+          {{ chosen_captains[:2] | join(', ') }} +{{ chosen_captains | length - 2 }}
+        {%- endif -%}
+      </span>
+      <span class="picker-cue">Change</span>
+      </span>
+    </summary>
+
+    <div class="picker-body">
+      <div class="picker-actions">
+        <button type="button" class="chip chip-on" data-pick="all">All</button>
+        <button type="button" class="chip" data-pick="none">None</button>
+      </div>
+
+      {% for box in boxes %}
+        {% set members = captains | selectattr('box', 'equalto', box) | list %}
+        {% if members %}
+          <p class="picker-group">{{ box }}</p>
+          {% for captain in members %}
+            {% set played = captain_counts.get(captain.name, 0) %}
+            <label class="opt {{ 'opt-empty' if not played }}">
+              <input type="checkbox" name="captain" value="{{ captain.name }}"
+                     {{ 'checked' if captain.name in chosen_captains }}>
+              <span class="opt-box" aria-hidden="true"></span>
+              <span class="opt-name">{{ captain.name }}</span>
+              <span class="opt-count">{{ played }}</span>
+            </label>
+          {% endfor %}
+        {% endif %}
+      {% endfor %}
+
+      {% if extra_captains %}
+        <p class="picker-group">Other</p>
+        {% for name in extra_captains %}
+          <label class="opt">
+            <input type="checkbox" name="captain" value="{{ name }}"
+                   {{ 'checked' if name in chosen_captains }}>
+            <span class="opt-box" aria-hidden="true"></span>
+            <span class="opt-name">{{ name }}</span>
+            <span class="opt-count">{{ captain_counts.get(name, 0) }}</span>
+          </label>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </details>
+
+  <div class="field">
+    <span class="field-label">Board</span>
+    <div class="pills">
+      {% for value, label in [('advanced', 'Advanced'), ('basic', 'Basic')] %}
+        <label class="pill pill-mauve">
+          <input type="checkbox" name="board" value="{{ value }}"
+                 {{ 'checked' if value in chosen_boards }}>
+          <span>{{ label }}</span>
+        </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="field field-wrap">
+    <span class="field-label">Rank</span>
+    <div class="pills">
+      {% for level in difficulties %}
+        {% if not (perspective == 'bot' and level == solo_rank) %}
+          <label class="pill pill-amber">
+            <input type="checkbox" name="rank" value="{{ level }}"
+                   {{ 'checked' if level in chosen_ranks }}>
+            <span>{{ level }}</span>
+          </label>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="filter-actions">
+    <button class="btn btn-primary" type="submit">Apply</button>
+    <a class="btn btn-quiet" href="{{ url_for('stats_page') }}">Reset</a>
+  </div>
+</form>
+
+{% if summary.games == 0 %}
+  <div class="empty">
+    <p class="empty-title">Nothing matches</p>
+    <p class="empty-body">Widen the filters, or log a few more games.</p>
+  </div>
+{% else %}
+
+<div class="stat-strip">
+  <div class="stat">
+    <span class="stat-label">Games</span>
+    <span class="stat-value">{{ summary.games }}</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Record</span>
+    <span class="stat-value">{{ summary.wins }}&ndash;{{ summary.losses }}</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Avg pts</span>
+    <span class="stat-value">{{ summary.avg_points if summary.avg_points is not none else '—' }}</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Best</span>
+    <span class="stat-value">{{ summary.best if summary.best is not none else '—' }}</span>
+  </div>
+</div>
+
+<section class="panel">
+  <h2 class="panel-title">Score over time</h2>
+  <p class="panel-sub">Each game, oldest first</p>
+  {% if geometry %}
+    <svg class="trend" viewBox="0 0 {{ geometry.width }} {{ geometry.height }}"
+         role="img"
+         aria-label="Score for each game over time against a reference line at {{ geometry.target_value }}">
+      <line x1="{{ geometry.pad_left }}" y1="{{ geometry.target }}"
+            x2="{{ geometry.width - 8 }}" y2="{{ geometry.target }}"
+            stroke="#CC6666" stroke-width="1" stroke-dasharray="3 3"/>
+      <text x="0" y="{{ geometry.target + 4 }}" class="trend-tick">{{ geometry.target_value }}</text>
+      <polyline points="{{ geometry.polyline }}" fill="none"
+                stroke="#FF9900" stroke-width="2"
+                stroke-linejoin="round" stroke-linecap="round"/>
+      {% for point in geometry.points %}
+        <circle cx="{{ point.x }}" cy="{{ point.y }}" r="3.5"
+                fill="{{ '#99CC99' if point.result == 'win' else '#CC6666' }}">
+          <title>{{ point.date }}: {{ point.total }}</title>
+        </circle>
+      {% endfor %}
+      <text x="{{ geometry.pad_left }}" y="{{ geometry.height - 2 }}"
+            class="trend-tick">{{ geometry.first_label }}</text>
+      <text x="{{ geometry.width - 30 }}" y="{{ geometry.height - 2 }}"
+            class="trend-tick">{{ geometry.last_label }}</text>
+    </svg>
+  {% else %}
+    <p class="panel-thin">
+      {{ 'One scored game so far. Two are needed to draw a line.'
+         if point_count == 1 else 'No scored games match these filters.' }}
+    </p>
+  {% endif %}
+</section>
+
+{% if categories %}
+<section class="panel">
+  <h2 class="panel-title">Where the points come from</h2>
+  <p class="panel-sub">
+    Average per game, {{ "bot's" if perspective == 'you' else 'yours' }} marked with a line
+  </p>
+  {% set widest = categories | map(attribute='own') | max %}
+  {% for cat in categories %}
+    <div class="mrow">
+      <span class="mrow-label">{{ cat.label }}</span>
+      <span class="mrow-track">
+        <span class="mrow-fill" style="width: {{ (cat.own / widest * 100) if widest > 0 else 0 }}%;
+                     background: {{ cat.colour }}"></span>
+        {% if cat.other is not none %}
+          <span class="mrow-ghost"
+                style="left: {{ (cat.other / widest * 100) if widest > 0 else 0 }}%"
+                title="{{ 'Bot' if perspective == 'you' else 'You' }}: {{ cat.other }}"></span>
+        {% endif %}
+      </span>
+      <span class="mrow-value">
+        {{ cat.own }}{% if cat.other is not none %} <span class="mrow-other">/ {{ cat.other }}</span>{% endif %}
+      </span>
+    </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if compositions %}
+<section class="panel">
+  <h2 class="panel-title">Scoring shape by captain</h2>
+  <p class="panel-sub">Share of each captain's average total, two games minimum</p>
+  {% for entry in compositions %}
+    <div class="mrow">
+      <span class="mrow-label">{{ entry.captain }}</span>
+      <span class="shape">
+        {% for seg in entry.segments %}
+          <span class="shape-seg" style="width: {{ seg.share }}%; background: {{ seg.colour }}"
+                title="{{ seg.label }}: {{ seg.value }} ({{ seg.share }}%)"></span>
+        {% endfor %}
+      </span>
+      <span class="mrow-value">{{ entry.average }}<span class="mrow-other"> n{{ entry.games }}</span></span>
+    </div>
+  {% endfor %}
+
+  <div class="legend">
+    {% for key, label, bot_scores, colour in config_rows %}
+      {% if perspective == 'you' or bot_scores %}
+        <span class="legend-item">
+          <span class="legend-dot" style="background: {{ colour }}"></span>{{ label }}
+        </span>
+      {% endif %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="panel">
+  <h2 class="panel-title">{{ 'Your' if perspective == 'you' else "The bot's" }} win rate by rank</h2>
+  <p class="panel-sub">Sample size shown, since these are small</p>
+  {% for entry in ranks %}
+    <div class="mrow {{ 'mrow-empty' if not entry.games }}">
+      <span class="mrow-label">{{ entry.rank }}</span>
+      <span class="mrow-track">
+        {% if entry.games %}
+          <span class="mrow-fill" style="width: {{ entry.percent }}%;
+                       background: {{ '#99CC99' if entry.percent >= 50 else '#CC6666' }}"></span>
+        {% endif %}
+      </span>
+      <span class="mrow-value">
+        {%- if entry.games -%}
+          {{ entry.percent }}%<span class="mrow-other"> n{{ entry.games }}</span>
+        {%- else -%}
+          <span class="mrow-other">n0</span>
+        {%- endif -%}
+      </span>
+    </div>
+  {% endfor %}
+</section>
+
+{% endif %}
+
+<a class="btn btn-quiet btn-block" href="{{ url_for('log') }}">Back to the log</a>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='stats.js') }}"></script>
+{% endblock %}

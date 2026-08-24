@@ -118,6 +118,53 @@ under your personal account rather than opening the router.
 Visit the address in mobile Safari or Chrome and choose "Add to home screen".
 The manifest makes it open without browser chrome.
 
+## Stats page
+
+At `/stats`, linked from the log. Everything is server-rendered — the charts are
+inline SVG and CSS bars, so there is no charting library and nothing to load on
+a Pi.
+
+### Filters
+
+State lives entirely in the query string, so any view is a bookmarkable URL:
+`/stats?side=you&captain=Georgiou&captain=Kirk&rank=Lieutenant`.
+
+An empty selection in a group means "no filter" rather than "nothing", so
+clearing a group cannot strand you on a blank page. Unrecognised values are
+dropped rather than erroring. Captains sit behind a collapsed summary rather
+than a pill row, because pills stop scaling somewhere around a dozen options.
+
+Filters apply on submit rather than on every click. With multi-select that
+matters — auto-submitting would reload the page between each captain you tick.
+
+### The You / Bot toggle
+
+This is not a straight swap, because the bot is not symmetrical with you:
+
+- The bot never scores Mission, so that row disappears rather than showing zero.
+- Cadet games have no bot at all, so they drop out of the sample entirely. The
+  header count says so: "6 of 6" rather than "6 of 7".
+- Cadet vanishes from both the rank filter and the win rate panel.
+- The toggle also changes what the captain filter means, from your captain to
+  the bot's.
+
+The win rate panel is a mirror in bot view, since the bot's win rate is exactly
+your loss rate. It is relabelled rather than hidden, so the number is never
+ambiguous about whose it is.
+
+### Why composition rather than stacked averages
+
+The scoring shape panel stacks each captain's *share* of their own total, not
+raw averages. Averages do not sum: stacking one captain's 20 on another's 14
+gives 34, which describes no game that was ever played, and the highest-scoring
+captain would bury the rest. Shares sum to 100, so every bar is the same length
+and the shapes are directly comparable. The raw average sits at the right so
+the magnitude that normalising discards is still visible.
+
+Captains with fewer than two games are suppressed. Negative Card VP is clamped
+to zero for the width calculation only — a negative slice has no sensible width
+— while the reported average stays truthful.
+
 ## Backups
 
 Everything lives under `CC_DATA_DIR`: `captains_log.db` plus a `photos/`
@@ -161,11 +208,13 @@ Costs a fraction of a cent per game. Swap models with `CC_MODEL`.
 ## Tests
 
 ```bash
-python3 test_app.py
+python3 test_app.py && python3 test_stats.py
 ```
 
-Covers the scoring rules, the Burn path, negative values, validation, auth,
-pagination, and the extraction parser. Uses a temporary database and leaves no
+The first covers the scoring rules, the Burn path, negative values, validation,
+auth, pagination, and the extraction parser. The second covers the stats
+filters, the perspective toggle, and the aggregations, including the awkward
+cases: a single data point, identical scores, and negative totals. Uses a temporary database and leaves no
 trace.
 
 ## Layout notes

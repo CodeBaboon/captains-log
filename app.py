@@ -14,6 +14,7 @@ from werkzeug.security import check_password_hash
 import config
 import db
 import extract
+import stats as analytics
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = config.SECRET_KEY
@@ -146,6 +147,71 @@ def log_page():
             "has_more": total > offset + config.PAGE_SIZE,
             "next_offset": offset + config.PAGE_SIZE,
         }
+    )
+
+
+# --------------------------------------------------------------------------
+# Stats
+# --------------------------------------------------------------------------
+
+def _selected(name, allowed):
+    """Read a repeated query parameter, keeping only recognised values."""
+    chosen = [v for v in request.args.getlist(name) if v in allowed]
+    # An empty selection means no filter, so every group falls back to all.
+    return chosen
+
+
+@app.get("/stats")
+@login_required
+def stats_page():
+    perspective = request.args.get("side")
+    if perspective not in ("you", "bot"):
+        perspective = "you"
+
+    captain_field = "player_captain" if perspective == "you" else "bot_captain"
+    counts = db.captain_counts(g.user["id"], captain_field)
+    known = [c["name"] for c in db.list_captains()]
+    # Include any captain that appears in the log even if delisted since.
+    for name in counts:
+        if name not in known:
+            known.append(name)
+
+    chosen_captains = _selected("captain", set(known))
+    chosen_boards = _selected("board", {"basic", "advanced"})
+    chosen_ranks = _selected("rank", set(config.DIFFICULTIES))
+
+    rows = db.filtered_games(
+        g.user["id"],
+        perspective=perspective,
+        captains=chosen_captains,
+        boards=chosen_boards,
+        ranks=chosen_ranks,
+    )
+    everything = db.filtered_games(g.user["id"], perspective=perspective)
+
+    points = analytics.trend(rows, perspective)
+
+    return render_template(
+        "stats.html",
+        perspective=perspective,
+        summary=analytics.summary(rows, perspective),
+        geometry=analytics.trend_geometry(points),
+        point_count=len(points),
+        categories=analytics.category_averages(rows, perspective),
+        compositions=analytics.composition_by_captain(rows, perspective),
+        ranks=analytics.win_rate_by_rank(rows, perspective),
+        captains=db.list_captains(),
+        captain_counts=counts,
+        extra_captains=[n for n in known if n not in [c["name"] for c in db.list_captains()]],
+        boxes=db.BOXES,
+        difficulties=config.DIFFICULTIES,
+        chosen_captains=chosen_captains,
+        chosen_boards=chosen_boards,
+        chosen_ranks=chosen_ranks,
+        shown=len(rows),
+        available=len(everything),
+        solo_rank=config.SOLO_RANK,
+        config_rows=config.SCORE_ROWS,
     )
 
 

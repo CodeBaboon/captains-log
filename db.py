@@ -275,6 +275,58 @@ def count_games(user_id):
     return n
 
 
+def captain_counts(user_id, field="player_captain"):
+    """How many games each captain appears in, for the filter panel."""
+    if field not in ("player_captain", "bot_captain"):
+        raise ValueError("bad field")
+    conn = connect()
+    rows = conn.execute(
+        f"SELECT {field} AS name, COUNT(*) AS n FROM games "
+        f"WHERE user_id = ? AND {field} != '' GROUP BY {field}",
+        (user_id,),
+    ).fetchall()
+    conn.close()
+    return {r["name"]: r["n"] for r in rows}
+
+
+def filtered_games(user_id, perspective="you", captains=None, boards=None, ranks=None):
+    """Games matching the stats page filters.
+
+    An empty selection in any group means "no filter" rather than "nothing",
+    so clearing a group cannot strand you on an empty page.
+    """
+    where = ["user_id = ?"]
+    params = [user_id]
+
+    if perspective == "bot":
+        # Cadet games have no opponent, so they cannot appear from the bot's side.
+        where.append("bot_captain != ''")
+
+    if captains:
+        field = "player_captain" if perspective == "you" else "bot_captain"
+        where.append(
+            f"{field} IN ({', '.join('?' for _ in captains)}) COLLATE NOCASE"
+        )
+        params.extend(captains)
+
+    if boards:
+        where.append(f"board_side IN ({', '.join('?' for _ in boards)})")
+        params.extend(boards)
+
+    if ranks:
+        where.append(f"bot_difficulty IN ({', '.join('?' for _ in ranks)})")
+        params.extend(ranks)
+
+    conn = connect()
+    rows = conn.execute(
+        f"SELECT * FROM games WHERE {' AND '.join(where)} "
+        "ORDER BY played_on DESC, id DESC",
+        params,
+    ).fetchall()
+    conn.close()
+    return rows
+
+
 def stats(user_id):
     """Headline numbers for the log screen.
 
