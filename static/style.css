@@ -1092,3 +1092,72 @@ select {
   outline: 2px solid var(--lcars-orange);
   outline-offset: 2px;
 }
+
+/* --- Breadcrumbs -------------------------------------------------------- */
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  min-height: 22px;
+}
+
+.crumb-back {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 22px;
+  font-size: 15px;
+  line-height: 1;
+  text-decoration: none;
+  color: var(--lcars-orange);
+  background: var(--panel);
+  border-radius: 999px 0 0 999px;
+}
+
+.crumb-back:hover { background: var(--lcars-orange); color: #1A1206; }
+
+.crumb-back:focus-visible {
+  outline: 2px solid var(--lcars-gold);
+  outline-offset: 2px;
+}
+
+.crumb-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.crumb {
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.crumb + .crumb::before {
+  content: "/";
+  margin-right: 6px;
+  color: #4A4A4A;
+}
+
+.crumb a {
+  color: var(--lcars-blue);
+  text-decoration: none;
+}
+
+.crumb a:hover { color: var(--lcars-orange); text-decoration: underline; }
+
+.crumb a:focus-visible {
+  outline: 2px solid var(--lcars-orange);
+  outline-offset: 2px;
+}
+
+.crumb span { color: var(--text-dim); }

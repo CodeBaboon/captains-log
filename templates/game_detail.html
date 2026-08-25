@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {% set matchup = game.player_captain ~ ' v ' ~ game.bot_captain if game.bot_captain
                  else game.player_captain ~ ' solo' %}
-{% block title %}{{ matchup }}{% endblock %}
+{% set page_title = matchup %}
+{% set crumbs = [{'label': 'Log', 'url': url_for('log')},
+                 {'label': matchup}] %}
 {% block bodyclass %}page-detail{% endblock %}
 {% block heading %}{{ matchup }}{% endblock %}
 {% block meta %}{{ game.played_on|stardate }}{% endblock %}
@@ -87,7 +89,5 @@
     <button class="btn btn-quiet" type="submit">Delete</button>
   </form>
 </div>
-
-<a class="btn btn-quiet btn-block" href="{{ url_for('log') }}">Back to the log</a>
 
 {% endblock %}

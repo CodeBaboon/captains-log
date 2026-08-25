@@ -1,5 +1,8 @@
 {% extends "base.html" %}
-{% block title %}{{ name }}{% endblock %}
+{% set page_title = name %}
+{% set crumbs = [{'label': 'Log', 'url': url_for('log')},
+                 {'label': 'Stats', 'url': url_for('stats_page', side=perspective)},
+                 {'label': name}] %}
 {% block bodyclass %}page-captain{% endblock %}
 {% block heading %}{{ name }}{% endblock %}
 {% block meta %}{{ box or ('As the bot' if perspective == 'bot' else '') }}{% endblock %}
@@ -101,8 +104,5 @@
     <p class="panel-thin">Showing {{ games | length }} of {{ total_games }}.</p>
   {% endif %}
 </section>
-
-<a class="btn btn-quiet btn-block"
-   href="{{ url_for('stats_page', side=perspective) }}">Back to stats</a>
 
 {% endblock %}

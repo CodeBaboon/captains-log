@@ -194,6 +194,35 @@ being dropped, and sort last since they are not really a matchup.
 A captain with no games returns 404 rather than an empty page, since there is
 nothing to say about a captain you have never played.
 
+## Navigation and titles
+
+Every page except the log and the auth screens defines two things at the top of
+its template: `page_title` and `crumbs`. Base renders both, so adding a page
+means adding two `set` lines rather than touching the layout.
+
+Titles are `Page | Captain's Log`, with the log itself just `Captain's Log`.
+
+Breadcrumbs carry a back chevron pointing at the parent crumb, which is what
+makes a deep page one tap from its parent. Query state travels with the links:
+from a captain page opened in bot view, both the chevron and the Stats crumb
+return you to bot view rather than resetting to your own.
+
+The bottom "Back to" buttons are gone. They only existed because there was no
+other way out of a page.
+
+## Icons
+
+`static/icons/` holds an SVG favicon plus 32, 180, 192 and 512 pixel PNGs, all
+generated from the same geometry: three stacked pill bars in orange, mauve and
+blue, matching the divider motif that appears on every screen. The shape is
+paths rather than text, so nothing depends on a font loading.
+
+The manifest references the 192 and 512 icons, which is what makes an installed
+home screen shortcut show the real icon instead of a generic browser glyph.
+
+To regenerate them, the geometry lives in the SVG; the PNG sizes were rendered
+with Pillow at 4x and downsampled.
+
 ## Backups
 
 Everything lives under `CC_DATA_DIR`: `captains_log.db` plus a `photos/`
@@ -237,13 +266,15 @@ Costs a fraction of a cent per game. Swap models with `CC_MODEL`.
 ## Tests
 
 ```bash
-python3 test_app.py && python3 test_stats.py
+python3 test_app.py && python3 test_stats.py && python3 test_nav.py
 ```
 
 The first covers the scoring rules, the Burn path, negative values, validation,
 auth, pagination, and the extraction parser. The second covers the stats
 filters, the perspective toggle, and the aggregations, including the awkward
-cases: a single data point, identical scores, and negative totals. Uses a temporary database and leaves no
+cases: a single data point, identical scores, and negative totals. The third
+covers page titles, breadcrumb structure, and that every icon the page and
+manifest reference actually resolves. Uses a temporary database and leaves no
 trace.
 
 ## Layout notes

@@ -1,5 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Stats{% endblock %}
+{% set page_title = "Stats" %}
+{% set crumbs = [{'label': 'Log', 'url': url_for('log')},
+                 {'label': 'Stats'}] %}
 {% block bodyclass %}page-stats{% endblock %}
 {% block heading %}Stats{% endblock %}
 {% block meta %}{{ shown }} of {{ available }} games{% endblock %}
@@ -256,8 +258,6 @@
 </section>
 
 {% endif %}
-
-<a class="btn btn-quiet btn-block" href="{{ url_for('log') }}">Back to the log</a>
 
 {% endblock %}
 

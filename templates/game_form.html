@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% set editing = mode == 'edit' %}
-{% block title %}{{ 'Edit game' if editing else 'New game' }}{% endblock %}
+{% set page_title = 'Edit game' if editing else 'New game' %}
+{% set crumbs = [{'label': 'Log', 'url': url_for('log')},
+                 {'label': 'Edit' if editing else 'New game'}] %}
 {% block bodyclass %}page-form{% endblock %}
 {% block heading %}{{ 'Edit game' if editing else 'New game' }}{% endblock %}
 {% block meta %}<span id="stardate-out"></span>{% endblock %}
