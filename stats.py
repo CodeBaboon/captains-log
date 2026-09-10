@@ -378,3 +378,47 @@ def rank_ladder(rows, perspective):
             "percent": percent,
         })
     return out
+
+
+def record_by_captain(rows, perspective):
+    """Win-loss record per captain, with scoring averages alongside.
+
+    Solo games fold in: at Cadet a game is won or lost against the target
+    score, so it counts the same as any other result.
+    """
+    field = "player_captain" if perspective == "you" else "bot_captain"
+
+    grouped = {}
+    for row in rows:
+        name = row[field]
+        if not name:
+            continue
+        grouped.setdefault(name, []).append(row)
+
+    out = []
+    for name, games in grouped.items():
+        if perspective == "you":
+            wins = sum(1 for r in games if r["result"] == "win")
+        else:
+            wins = sum(1 for r in games if r["result"] == "loss")
+
+        totals = [
+            _total(r, perspective)
+            for r in games
+            if r["ending"] == "resolution" and _total(r, perspective) is not None
+        ]
+
+        out.append({
+            "captain": name,
+            "wins": wins,
+            "losses": len(games) - wins,
+            "games": len(games),
+            "percent": round(wins / len(games) * 100),
+            "average": round(sum(totals) / len(totals)) if totals else None,
+            "best": max(totals) if totals else None,
+        })
+
+    # Default order: most wins first, then the better rate, then alphabetical so
+    # the ordering never depends on dictionary insertion.
+    out.sort(key=lambda c: (-c["wins"], -c["percent"], c["captain"]))
+    return out

@@ -1161,3 +1161,85 @@ select {
 }
 
 .crumb span { color: var(--text-dim); }
+
+/* --- Record table ------------------------------------------------------ */
+
+.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.ledger th,
+.ledger td {
+  padding: 0;
+  text-align: right;
+  font-weight: 400;
+}
+
+.ledger .led-name { text-align: left; width: 38%; }
+
+.ledger thead th { border-bottom: 1px solid #2A2A2A; }
+
+/* Headers are buttons so they are keyboard reachable, and tall enough to be
+   a comfortable tap target on a phone. */
+.led-sort {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 4px;
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: right;
+  color: var(--lcars-blue);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.led-name .led-sort { text-align: left; }
+
+.led-sort:hover { color: var(--lcars-orange); }
+
+.led-sort:focus-visible {
+  outline: 2px solid var(--lcars-orange);
+  outline-offset: -2px;
+}
+
+.led-sort.is-sorted { color: var(--lcars-orange); }
+
+.led-sort.is-sorted::after {
+  content: " \25BC";
+  font-size: 8px;
+}
+
+.led-sort.is-sorted.is-ascending::after { content: " \25B2"; }
+
+.ledger tbody td {
+  padding: 8px 4px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  border-bottom: 1px solid #1C1C1C;
+}
+
+.ledger tbody tr:last-child td { border-bottom: 0; }
+
+.ledger tbody .led-name {
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ledger tbody td.led-good { color: var(--lcars-go); }
+.ledger tbody td.led-bad { color: var(--lcars-rose); }
+
+@media (max-width: 380px) {
+  .ledger .led-name { width: 34%; }
+  .led-sort { font-size: 9px; letter-spacing: 0.05em; }
+  .ledger tbody td { font-size: 12px; }
+}

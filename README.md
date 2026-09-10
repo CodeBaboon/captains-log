@@ -152,6 +152,26 @@ The win rate panel is a mirror in bot view, since the bot's win rate is exactly
 your loss rate. It is relabelled rather than hidden, so the number is never
 ambiguous about whose it is.
 
+### Record by captain
+
+A sortable table directly under the headline chips. Default order is most wins
+first, tie-broken by win rate then name, so the order is deterministic rather
+than depending on how rows came out of the database.
+
+The server always renders it sorted; the column sorting is client-side and a
+progressive enhancement, so it still makes sense with JavaScript off. Headers
+are real buttons inside `th` elements with `aria-sort`, keyboard reachable, and
+at least 34px tall so they are tappable on a phone.
+
+Two sorting details worth keeping: captains with no scored games have no
+average or best, and those blanks sort last in both directions rather than
+being treated as zero. Ties always fall back to captain name, so repeated
+clicks never reshuffle equal rows.
+
+Solo games fold into the record. At Cadet a game is won or lost against the
+target score, so it counts like any other result, and the page filters can
+exclude Cadet if you want them out.
+
 ### Why composition rather than stacked averages
 
 The scoring shape panel stacks each captain's *share* of their own total, not
@@ -267,6 +287,7 @@ Costs a fraction of a cent per game. Swap models with `CC_MODEL`.
 
 ```bash
 python3 test_app.py && python3 test_stats.py && python3 test_nav.py
+node test_sort.js   # needs jsdom: npm install jsdom
 ```
 
 The first covers the scoring rules, the Burn path, negative values, validation,
@@ -274,7 +295,8 @@ auth, pagination, and the extraction parser. The second covers the stats
 filters, the perspective toggle, and the aggregations, including the awkward
 cases: a single data point, identical scores, and negative totals. The third
 covers page titles, breadcrumb structure, and that every icon the page and
-manifest reference actually resolves. Uses a temporary database and leaves no
+manifest reference actually resolves. `test_sort.js` drives the record table's
+column sorting in a real DOM, which is the only way to catch a comparator bug. Uses a temporary database and leaves no
 trace.
 
 ## Layout notes

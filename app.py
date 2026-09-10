@@ -197,6 +197,7 @@ def stats_page():
         summary=analytics.summary(rows, perspective),
         geometry=analytics.trend_geometry(points),
         point_count=len(points),
+        records=analytics.record_by_captain(rows, perspective),
         categories=analytics.category_averages(rows, perspective),
         compositions=analytics.composition_by_captain(rows, perspective),
         ranks=analytics.win_rate_by_rank(rows, perspective),

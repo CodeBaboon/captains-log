@@ -141,6 +141,52 @@
   </div>
 </div>
 
+{% if records %}
+<section class="panel">
+  <h2 class="panel-title">Record by captain</h2>
+  <table class="ledger" id="record-table">
+    <thead>
+      <tr>
+        <th scope="col" class="led-name" aria-sort="none">
+          <button type="button" class="led-sort" data-key="captain" data-type="text">Captain</button>
+        </th>
+        <th scope="col" aria-sort="descending">
+          <button type="button" class="led-sort is-sorted" data-key="wins" data-type="number">W&ndash;L</button>
+        </th>
+        <th scope="col" aria-sort="none">
+          <button type="button" class="led-sort" data-key="percent" data-type="number">Rate</button>
+        </th>
+        <th scope="col" aria-sort="none">
+          <button type="button" class="led-sort" data-key="average" data-type="number">Avg</button>
+        </th>
+        <th scope="col" aria-sort="none">
+          <button type="button" class="led-sort" data-key="best" data-type="number">Best</button>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for entry in records %}
+        <tr data-captain="{{ entry.captain }}"
+            data-wins="{{ entry.wins }}"
+            data-percent="{{ entry.percent }}"
+            data-average="{{ entry.average if entry.average is not none else '' }}"
+            data-best="{{ entry.best if entry.best is not none else '' }}">
+          <td class="led-name">
+            <a class="mrow-link"
+               href="{{ url_for('captain_page', name=entry.captain, side=perspective) }}"
+            >{{ entry.captain }}</a>
+          </td>
+          <td>{{ entry.wins }}&ndash;{{ entry.losses }}</td>
+          <td class="{{ 'led-good' if entry.percent >= 50 else 'led-bad' }}">{{ entry.percent }}%</td>
+          <td>{{ entry.average if entry.average is not none else '—' }}</td>
+          <td>{{ entry.best if entry.best is not none else '—' }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
 <section class="panel">
   <h2 class="panel-title">Score over time</h2>
   {% if geometry %}

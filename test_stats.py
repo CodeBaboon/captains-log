@@ -187,6 +187,56 @@ geo = analytics.trend_geometry(spread)
 check("multi month labels are months", geo["first_label"] == "JUN"
       and geo["last_label"] == "AUG", f"{geo['first_label']} / {geo['last_label']}")
 
+print("\nrecord table")
+r = client.get("/stats")
+check("table renders", b'id="record-table"' in r.data)
+check("table sits above the trend",
+      r.data.index(b"Record by captain") < r.data.index(b"Score over time"))
+check("captain names link out", b'/captain/Georgiou' in r.data)
+check("headers are buttons", r.data.count(b'class="led-sort') >= 5)
+check("default sort marked on wins",
+      b'data-key="wins" data-type="number">W' in r.data
+      and b'is-sorted" data-key="wins"' in r.data)
+
+rows = db.filtered_games(1)
+recs = analytics.record_by_captain(rows, "you")
+check("every captain present", len(recs) == len({r["player_captain"] for r in rows}))
+check("wins and losses sum to games",
+      all(x["wins"] + x["losses"] == x["games"] for x in recs))
+check("games sum to the filtered total",
+      sum(x["games"] for x in recs) == len(rows))
+check("sorted by wins descending",
+      all(recs[i]["wins"] >= recs[i + 1]["wins"] for i in range(len(recs) - 1)),
+      str([(x["captain"], x["wins"]) for x in recs]))
+
+tied = [x for x in recs if x["wins"] == recs[0]["wins"]]
+check("ties break on rate then name",
+      all(tied[i]["percent"] >= tied[i + 1]["percent"] for i in range(len(tied) - 1)))
+
+check("solo games fold into the record",
+      sum(x["games"] for x in recs) == len([r for r in rows if r["player_captain"]]))
+
+burn_only = [r for r in rows if r["ending"] == "burn"]
+if burn_only:
+    only = analytics.record_by_captain(burn_only, "you")
+    check("burn-only captain has no average",
+          all(x["average"] is None and x["best"] is None for x in only))
+
+check("percent matches wins over games",
+      all(x["percent"] == round(x["wins"] / x["games"] * 100) for x in recs))
+
+filtered = analytics.record_by_captain(db.filtered_games(1, captains=["Kirk"]), "you")
+check("page filters narrow the table", len(filtered) == 1
+      and filtered[0]["captain"] == "Kirk")
+
+bot_recs = analytics.record_by_captain(db.filtered_games(1, perspective="bot"), "bot")
+check("bot view lists bot captains",
+      all(x["captain"] in {r["bot_captain"] for r in db.filtered_games(1, perspective="bot")}
+          for x in bot_recs))
+check("bot wins are player losses",
+      sum(x["wins"] for x in bot_recs)
+      == len([r for r in db.filtered_games(1, perspective="bot") if r["result"] == "loss"]))
+
 print("\ncaptain detail")
 r = client.get("/stats")
 check("captain names link through", b"/captain/" in r.data)
