@@ -8,6 +8,8 @@ TMP = tempfile.mkdtemp()
 os.environ["CC_DATA_DIR"] = TMP
 os.environ["CC_SECRET_KEY"] = "test-key"
 
+import pathlib  # noqa: E402
+
 import config  # noqa: E402
 import app as application  # noqa: E402
 import db  # noqa: E402
@@ -141,6 +143,24 @@ client.post("/games/new", data=form(bot_difficulty="Cadet", bot_captain="",
                                     ending="burn"))
 row = db.list_games(1)[0]
 check("cadet can still burn", row["result"] == "loss" and row["ending"] == "burn")
+
+print("\nphotos are not stored")
+import io  # noqa: E402
+
+# Even if a browser does send the file, nothing should land on disk.
+with_file = dict(form(), photo=(io.BytesIO(b"\xff\xd8\xff fake"), "sheet.jpg"))
+client.post("/games/new", data=with_file, content_type="multipart/form-data")
+row = db.list_games(1)[0]
+check("an uploaded file is not recorded", row["photo_path"] is None,
+      f"got {row['photo_path']}")
+check("no photo directory is created",
+      not (pathlib.Path(TMP) / "photos").exists())
+check("the photo route is gone", client.get("/photos/anything.jpg").status_code == 404)
+check("game detail renders no image",
+      b"sheet-photo" not in client.get(f"/games/{row['id']}").data)
+check("the scan input is not submitted with the form",
+      b'id="photo" accept' in client.get("/games/new").data
+      and b'name="photo"' not in client.get("/games/new").data)
 
 print("\nvalidation")
 r = client.post("/games/new", data=form(p_glory="banana"), follow_redirects=True)

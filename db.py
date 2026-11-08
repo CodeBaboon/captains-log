@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS games (
 
     p_total    INTEGER,
     b_total    INTEGER,
-    photo_path TEXT,
+    photo_path TEXT,      -- vestigial: photos are no longer stored
     notes      TEXT,
     created_at TEXT NOT NULL
 );
@@ -126,7 +126,6 @@ def _migrate(conn):
 
 def init_db():
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
-    config.PHOTO_DIR.mkdir(parents=True, exist_ok=True)
 
     conn = connect()
     with conn:
@@ -427,7 +426,7 @@ GAME_FIELDS = (
      "bot_difficulty", "ending", "result"]
     + [f"p_{k}" for k in config.SCORE_KEYS]
     + [f"b_{k}" for k in config.BOT_SCORE_KEYS]
-    + ["p_total", "b_total", "photo_path", "notes", "created_at"]
+    + ["p_total", "b_total", "notes", "created_at"]
 )
 
 
@@ -468,15 +467,10 @@ def get_game(game_id, user_id):
 def delete_game(game_id, user_id):
     conn = connect()
     with conn:
-        row = conn.execute(
-            "SELECT photo_path FROM games WHERE id = ? AND user_id = ?",
-            (game_id, user_id),
-        ).fetchone()
         conn.execute(
             "DELETE FROM games WHERE id = ? AND user_id = ?", (game_id, user_id)
         )
     conn.close()
-    return row["photo_path"] if row else None
 
 
 def list_games(user_id, limit=config.PAGE_SIZE, offset=0):

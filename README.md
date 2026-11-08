@@ -9,8 +9,13 @@ call when you scan a sheet. No compiled dependencies beyond Pillow.
 ## What it records
 
 Per game: date, your captain, board side, the bot's captain and rank, how the
-game ended, the eight score rows for both sides, computed totals, and the photo
-of the sheet if you scanned one.
+game ended, the eight score rows for both sides, and computed totals.
+
+Scoresheet photos are not stored. A photo is sent to the API, the numbers come
+back and fill the form, and the file is discarded. The `games.photo_path`
+column is vestigial, left in the schema so old and new databases match. The
+file input on the form deliberately has no `name`, so the browser does not
+upload the photo a second time when the game is saved.
 
 Four rules are enforced in `_parse_game_form`:
 
@@ -268,12 +273,13 @@ with Pillow at 4x and downsampled.
 
 ## Backups
 
-Everything lives under `CC_DATA_DIR`: `captains_log.db` plus a `photos/`
-folder. The database is in WAL mode, so copy it with sqlite rather than `cp`:
+Everything lives in one file: `$CC_DATA_DIR/captains_log.db`. The database is in
+WAL mode, so copy it with sqlite rather than `cp`, which would miss the
+write-ahead log:
 
 ```bash
-sqlite3 /var/lib/captains-log/captains_log.db ".backup /tmp/cc-backup.db"
-tar czf cc-$(date +%F).tar.gz -C /var/lib/captains-log photos /tmp/cc-backup.db
+sqlite3 /var/lib/captains-log/captains_log.db \
+  ".backup /path/to/backups/cc-$(date +%F).db"
 ```
 
 ## Captains

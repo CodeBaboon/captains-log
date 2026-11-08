@@ -673,13 +673,6 @@ select {
 
 .readout-value-bot { color: var(--text-dim); }
 
-.sheet-photo {
-  width: 100%;
-  border-radius: var(--radius);
-  margin-top: var(--gap);
-  display: block;
-}
-
 .notes {
   background: var(--panel);
   border-radius: var(--radius);

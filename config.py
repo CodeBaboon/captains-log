@@ -9,7 +9,6 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = Path(os.environ.get("CC_DATA_DIR", BASE_DIR / "data"))
-PHOTO_DIR = DATA_DIR / "photos"
 DB_PATH = DATA_DIR / "captains_log.db"
 
 SECRET_KEY = os.environ.get("CC_SECRET_KEY", "dev-only-change-me")

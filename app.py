@@ -479,18 +479,6 @@ def _parse_game_form(form):
     return data
 
 
-def _save_photo(file_storage):
-    if not file_storage or not file_storage.filename:
-        return None
-    ext = os.path.splitext(file_storage.filename)[1].lower()
-    if ext not in (".jpg", ".jpeg", ".png", ".webp", ".heic"):
-        ext = ".jpg"
-    name = f"{datetime.now().strftime('%Y%m%d')}-{secrets.token_hex(6)}{ext}"
-    config.PHOTO_DIR.mkdir(parents=True, exist_ok=True)
-    file_storage.save(config.PHOTO_DIR / name)
-    return name
-
-
 @app.route("/games/new", methods=["GET", "POST"])
 @login_required
 def new_game():
@@ -513,7 +501,6 @@ def new_game():
 
         data["user_id"] = g.user["id"]
         data["created_at"] = db.now_iso()
-        data["photo_path"] = _save_photo(request.files.get("photo"))
 
         game_id = db.insert_game(data)
         return redirect(url_for("game_detail", game_id=game_id))
@@ -545,7 +532,6 @@ def game_detail(game_id):
             flash(str(exc))
             return redirect(url_for("edit_game", game_id=game_id))
 
-        data["photo_path"] = _save_photo(request.files.get("photo")) or game["photo_path"]
         db.update_game(game_id, g.user["id"], data)
         return redirect(url_for("game_detail", game_id=game_id))
 
@@ -574,19 +560,8 @@ def edit_game(game_id):
 @app.post("/games/<int:game_id>/delete")
 @login_required
 def remove_game(game_id):
-    photo = db.delete_game(game_id, g.user["id"])
-    if photo:
-        try:
-            (config.PHOTO_DIR / photo).unlink(missing_ok=True)
-        except OSError:
-            pass
+    db.delete_game(game_id, g.user["id"])
     return redirect(url_for("log"))
-
-
-@app.get("/photos/<path:name>")
-@login_required
-def photo(name):
-    return send_from_directory(config.PHOTO_DIR, name)
 
 
 # --------------------------------------------------------------------------

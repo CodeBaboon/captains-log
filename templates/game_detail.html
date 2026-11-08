@@ -77,11 +77,6 @@
 
 {% if game.notes %}<div class="notes">{{ game.notes }}</div>{% endif %}
 
-{% if game.photo_path %}
-  <img class="sheet-photo" alt="Photograph of the scoresheet"
-       src="{{ url_for('photo', name=game.photo_path) }}">
-{% endif %}
-
 <div class="detail-actions">
   <a class="btn btn-ghost" href="{{ url_for('edit_game', game_id=game.id) }}">Edit</a>
   <form method="post" action="{{ url_for('remove_game', game_id=game.id) }}"
