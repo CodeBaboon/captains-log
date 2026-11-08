@@ -198,8 +198,9 @@ for i in range(25):
     client.post("/games/new", data=form(played_on=f"2026-07-{(i % 28) + 1:02d}"))
 
 r = client.get("/")
-check("first page caps at 20 rows", r.data.count(b'class="row row-link') == 20,
-      f"got {r.data.count(b'class=\"row row-link')}")
+row_markup = b'class="row row-link'
+check("first page caps at 20 rows", r.data.count(row_markup) == 20,
+      f"got {r.data.count(row_markup)}")
 check("load more offered", b"Load more" in r.data)
 
 r = client.get("/log/page?offset=20")

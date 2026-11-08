@@ -69,9 +69,10 @@ check("signed out is redirected",
 
 print("\nadding")
 page = client.get("/captains").data.decode()
+add_rows = page.count('class="cap-add"')
 check("each group carries its own add row",
-      page.count('class="cap-add"') == len(db.box_names()),
-      f"{page.count('class=\"cap-add\"')} rows for {len(db.box_names())} groups")
+      add_rows == len(db.box_names()),
+      f"{add_rows} rows for {len(db.box_names())} groups")
 check("the group dropdown is gone", 'aria-label="Which group"' not in page)
 check("the group is a hidden field now", 'type="hidden" name="box"' in page)
 check("add rows label their group for screen readers",

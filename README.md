@@ -509,6 +509,7 @@ Costs a fraction of a cent per game. Swap models with `CC_MODEL`.
 ## Tests
 
 ```bash
+python3 check_syntax.py
 python3 test_app.py && python3 test_stats.py && python3 test_nav.py \
   && python3 test_captains.py && python3 test_security.py
 node test_sort.js   # needs jsdom: npm install jsdom
@@ -521,7 +522,10 @@ cases: a single data point, identical scores, and negative totals. The third
 covers page titles, breadcrumb structure, and that every icon the page and
 manifest reference actually resolves. `test_captains.py` covers the shared captain
 list: the admin gate, the rename cascade into both game columns, that retiring
-leaves an old game editable, and the `is_admin` migration. `test_security.py` covers the parts that
+leaves an old game editable, and the `is_admin` migration. `check_syntax.py` parses every file against Python 3.11, the version Raspberry
+Pi OS bookworm ships. Development on a newer Python can otherwise introduce
+syntax that only fails on deployment, such as a backslash inside an f-string
+expression, which 3.12 allows and 3.11 does not. `test_security.py` covers the parts that
 matter once the app is on the internet, and several of its checks try to break
 in rather than confirming the happy path: forged and expired Access tokens, the
 `none` algorithm, off-site redirect targets, and that a bare email header
