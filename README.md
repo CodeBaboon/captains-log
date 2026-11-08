@@ -216,6 +216,14 @@ nothing to say about a captain you have never played.
 
 ## Navigation and titles
 
+The account menu lives in `base.html` and renders on every signed-in page, so
+the captain list is reachable from anywhere rather than only from the bottom of
+the log. A context processor exposes `current_user`, reusing the row
+`login_required` already loaded rather than issuing another query. The
+Manage captains link only renders for administrators; the route checks
+independently.
+
+
 Every page except the log and the auth screens defines two things at the top of
 its template: `page_title` and `crumbs`. Base renders both, so adding a page
 means adding two `set` lines rather than touching the layout.

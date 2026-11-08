@@ -108,6 +108,33 @@ check("captain has no bottom back link",
 check("game detail has no bottom back link",
       b"Back to the log" not in client.get("/games/1").data)
 
+print("\naccount menu")
+html = client.get("/").data.decode()
+check("menu renders when signed in", 'class="menu"' in html)
+check("menu names the account", "dave" in html.split('menu-label')[1][:40])
+check("admin sees the captain link", 'href="/captains"' in html)
+check("sign out lives in the menu",
+      html.index('class="menu"') < html.index('action="/logout"'))
+
+for path in ["/stats", "/games/new", "/games/1"]:
+    check(f"menu present on {path}", b'class="menu"' in client.get(path).data)
+
+anon = app.test_client()
+check("signed out pages have no menu",
+      b'class="menu"' not in anon.get("/login").data)
+
+import db as _db  # noqa: E402
+_db.create_user("friend", "longenough2")
+friend = app.test_client()
+friend.post("/login", data={"username": "friend", "password": "longenough2"})
+html = friend.get("/").data.decode()
+check("non-admin still gets a menu", 'class="menu"' in html)
+check("non-admin has no captain link", 'href="/captains"' not in html)
+check("non-admin can still sign out", 'action="/logout"' in html)
+
+check("old bottom sign-out button gone",
+      b'class="logout"' not in client.get("/").data)
+
 print("\nicons")
 for name, kind in [("favicon.svg", b"<svg"), ("icon-32.png", b"\x89PNG"),
                    ("icon-192.png", b"\x89PNG"), ("icon-512.png", b"\x89PNG"),

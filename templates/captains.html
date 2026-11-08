@@ -4,7 +4,7 @@
 {% extends "base.html" %}
 {% block bodyclass %}page-captains{% endblock %}
 {% block heading %}Captains{% endblock %}
-{% block meta %}{{ captains | length }} on the list{% endblock %}
+{% block meta %}{{ captains | length }} on the roster{% endblock %}
 
 {% block content %}
 
@@ -99,10 +99,5 @@
   </form>
 </section>
 
-<p class="panel-thin">
-  A group can be deleted once it has no captains in it.
-  Deleting a captain is only offered when no game references it. To get rid of one
-  that has games, rename it or delete those games first.
-</p>
 
 {% endblock %}

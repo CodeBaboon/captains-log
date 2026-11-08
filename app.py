@@ -55,6 +55,14 @@ def login_required(view):
     return wrapped
 
 
+@app.context_processor
+def inject_user():
+    user = getattr(g, "user", None)
+    if user is None and session.get("user_id"):
+        user = db.get_user(session["user_id"])
+    return {"current_user": user}
+
+
 @app.template_filter("stardate")
 def stardate(value):
     """A decorative stardate. Not canon, just pleasant.
@@ -143,7 +151,6 @@ def log():
         stats=db.stats(g.user["id"]),
         has_more=total > config.PAGE_SIZE,
         next_offset=config.PAGE_SIZE,
-        is_admin=bool(g.user["is_admin"]),
     )
 
 

@@ -60,6 +60,25 @@
 
   {% block content %}{% endblock %}
 
+  {% if current_user %}
+    <details class="menu">
+      <summary>
+        <span class="menu-summary">
+          <span class="menu-label">{{ current_user.username }}</span>
+          <span class="menu-cue">Menu</span>
+        </span>
+      </summary>
+      <div class="menu-body">
+        {% if current_user.is_admin %}
+          <a class="menu-item" href="{{ url_for('captains_page') }}">Manage captains</a>
+        {% endif %}
+        <form method="post" action="{{ url_for('logout') }}">
+          <button class="menu-item menu-item-quiet" type="submit">Sign out</button>
+        </form>
+      </div>
+    </details>
+  {% endif %}
+
 </div>
 {% block scripts %}{% endblock %}
 </body>
