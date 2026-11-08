@@ -57,6 +57,8 @@
           {% if current_user.is_admin %}
             <a class="menu-item" href="{{ url_for('captains_page') }}">Manage captains</a>
           {% endif %}
+          <a class="menu-item" href="{{ url_for('export_games') }}"
+             download>Export my games</a>
           <form method="post" action="{{ url_for('logout') }}"
                 onsubmit="return confirm('Sign out of Captain\'s Log?');">
             <button class="menu-item menu-item-quiet" type="submit">Sign out</button>

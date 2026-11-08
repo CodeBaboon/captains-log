@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
     id            INTEGER PRIMARY KEY,
     username      TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
+    email         TEXT,
     is_admin      INTEGER NOT NULL DEFAULT 0,
     created_at    TEXT NOT NULL
 );
@@ -115,6 +116,8 @@ def _seed_boxes(conn):
 def _migrate(conn):
     """Small, idempotent schema additions for databases created earlier."""
     columns = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
+    if "email" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN email TEXT")
     if "is_admin" not in columns:
         conn.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
         # The original account becomes the administrator.
@@ -173,6 +176,41 @@ def user_count():
     n = conn.execute("SELECT COUNT(*) AS n FROM users").fetchone()["n"]
     conn.close()
     return n
+
+
+def get_user_by_email(email):
+    conn = connect()
+    row = conn.execute(
+        "SELECT * FROM users WHERE email = ? COLLATE NOCASE", (email,)
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def create_access_user(email, username):
+    """Create an account for someone Cloudflare Access has vouched for.
+
+    No password is stored: these accounts sign in through Access only. The
+    hash column holds a value no password can produce.
+    """
+    conn = connect()
+    with conn:
+        existing = conn.execute("SELECT COUNT(*) AS n FROM users").fetchone()["n"]
+        name = username
+        suffix = 2
+        while conn.execute(
+            "SELECT 1 FROM users WHERE username = ? COLLATE NOCASE", (name,)
+        ).fetchone():
+            name = f"{username}{suffix}"
+            suffix += 1
+
+        cur = conn.execute(
+            "INSERT INTO users (username, password_hash, email, is_admin, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (name, "!access-only", email.lower(), 1 if existing == 0 else 0, now_iso()),
+        )
+    conn.close()
+    return cur.lastrowid
 
 
 def create_user(username, password, is_admin=None):
@@ -543,6 +581,17 @@ def filtered_games(user_id, perspective="you", captains=None, boards=None, ranks
     ).fetchall()
     conn.close()
     return rows
+
+
+def export_games(user_id):
+    """Every game for one user, oldest first, as plain dictionaries."""
+    conn = connect()
+    rows = conn.execute(
+        "SELECT * FROM games WHERE user_id = ? ORDER BY played_on, id",
+        (user_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 def stats(user_id):

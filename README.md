@@ -46,10 +46,15 @@ worth it for this.
 
 ```bash
 pip install -r requirements.txt
-export CC_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+export CC_ENV=development
 export ANTHROPIC_API_KEY="sk-ant-..."
 python3 app.py
 ```
+
+`CC_ENV=development` lets the app start without a secret key and relaxes the
+secure-cookie requirement so sessions work over plain HTTP. Anywhere else the
+app refuses to start without `CC_SECRET_KEY`, because the fallback key is
+published in this repository and anyone could forge a session with it.
 
 Open http://localhost:8080. The first visit sends you to `/setup` to create your
 account; that page stops working once an account exists.
@@ -92,7 +97,7 @@ EnvironmentFile=/etc/captains-log.env
 WorkingDirectory=/opt/captains-log
 ExecStart=/opt/captains-log/.venv/bin/gunicorn \
     --workers 2 --threads 2 --timeout 120 \
-    --bind 0.0.0.0:8080 app:app
+    --bind 127.0.0.1:8080 app:app
 Restart=on-failure
 
 NoNewPrivileges=true
@@ -114,8 +119,12 @@ sudo systemctl enable --now captains-log
 Two workers with two threads each is comfortable on a Pi 3. The 120 second
 timeout exists because a scan waits on the API.
 
-Do not forward a port for this. On your LAN it is reachable at
-`http://<pi>:8080`. If you later want it from outside, put Tailscale on the Pi
+Binding to `127.0.0.1` rather than `0.0.0.0` means only something on the Pi
+itself can reach the app. Reach it from elsewhere through the Cloudflare Tunnel
+or Tailscale, not by listening on every interface.
+
+Do not forward a port for this. With the app bound to localhost, reach it
+through the tunnel or over Tailscale. If you later want it from outside, put Tailscale on the Pi
 under your personal account rather than opening the router.
 
 ### Add it to your phone
@@ -273,14 +282,102 @@ with Pillow at 4x and downsampled.
 
 ## Backups
 
-Everything lives in one file: `$CC_DATA_DIR/captains_log.db`. The database is in
-WAL mode, so copy it with sqlite rather than `cp`, which would miss the
-write-ahead log:
+`deploy/backup.sh` takes a weekly snapshot. It uses Python's sqlite3 backup API
+rather than the `sqlite3` command line tool, which Raspberry Pi OS does not
+install by default, and which a plain `cp` could not replace anyway: the
+database runs in WAL mode, so recent writes can be sitting in the write-ahead
+log rather than the main file.
+
+Every backup is verified with `PRAGMA integrity_check` before it is kept, and
+the script exits non-zero if the check fails, so a silently corrupt file never
+masquerades as a good one.
 
 ```bash
-sqlite3 /var/lib/captains-log/captains_log.db \
-  ".backup /path/to/backups/cc-$(date +%F).db"
+sudo mkdir -p /var/backups/captains-log
+sudo chown "$USER" /var/backups/captains-log
+
+sudo cp deploy/captains-log-backup.service deploy/captains-log-backup.timer \
+    /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now captains-log-backup.timer
 ```
+
+Edit `User=` and `ExecStart=` in the service file to match your username and
+checkout path. Check it works before trusting it:
+
+```bash
+sudo systemctl start captains-log-backup.service
+journalctl -u captains-log-backup.service -n 20 --no-pager
+systemctl list-timers captains-log-backup.timer
+```
+
+Settings, all overridable in the service file:
+
+| Variable | Default |
+| --- | --- |
+| `CC_DB` | `/var/lib/captains-log/captains_log.db` |
+| `CC_BACKUP_DIR` | `/var/backups/captains-log` |
+| `CC_BACKUP_KEEP` | `8` |
+
+`Persistent=true` on the timer means a backup missed while the Pi was off runs
+at the next boot rather than being skipped.
+
+**The backups are on the same SD card as the database**, which is only half a
+backup: it survives a mistaken delete but not the card failing. Copy the
+directory somewhere else periodically, or point `CC_BACKUP_DIR` at a mount on
+another machine.
+
+To restore, stop the service, gunzip the snapshot over the database, and start
+again. Scoresheet photos are not stored, so the database is the whole of it.
+
+## Cloudflare Access
+
+When the app sits behind a Cloudflare Tunnel with an Access policy in front,
+Cloudflare has already authenticated the visitor and signs a token into every
+request. Trusting that token means no registration flow, no invite codes and no
+password resets: people are invited in the Cloudflare dashboard, and a user row
+is created here the first time they arrive.
+
+Two settings turn it on, both required:
+
+```
+CC_ACCESS_TEAM=yourteam          # or yourteam.cloudflareaccess.com
+CC_ACCESS_AUD=<application audience tag>
+```
+
+With either missing, Access sign-in is off entirely and the password form is
+the only way in. There is no configuration in which the app trusts an
+unverified header.
+
+`access.py` verifies the JWT signature against Cloudflare's published keys and
+checks the audience matches this application. It never falls back to the plain
+`Cf-Access-Authenticated-User-Email` header, which is only as trustworthy as
+whoever can reach the origin. A token that is present but invalid returns 403
+rather than quietly showing the password form, because that would hide a broken
+tunnel rather than surfacing it.
+
+Accounts created this way store `!access-only` in place of a password hash,
+which no password can produce, so they can only ever sign in through Access.
+Keep your own password account as a way back in if Cloudflare is having a bad
+day.
+
+`PyJWT` and `cryptography` are needed for this. On the Pi, prefer the distro
+packages over building from source:
+
+```bash
+sudo apt install python3-jwt python3-cryptography
+```
+
+## Export
+
+`/export.json` hands the signed-in account everything it has logged, as a
+download. Internal identifiers are stripped. The file includes the score row
+definitions and the solo threshold, so the numbers make sense without this
+codebase to read them against.
+
+This is not a nicety once other people are using it: their data lives on one
+Raspberry Pi with no account recovery, so being able to walk away with it is
+the least the app owes them.
 
 ## Captains
 
@@ -319,7 +416,56 @@ Futile, and Duty and Honor.
 Groups cannot be renamed yet. A typo is fixable by deleting the group while it
 is empty and adding it again.
 
-### Captains
+### Cloudflare Access
+
+When the app sits behind a Cloudflare Tunnel with an Access policy in front,
+Cloudflare has already authenticated the visitor and signs a token into every
+request. Trusting that token means no registration flow, no invite codes and no
+password resets: people are invited in the Cloudflare dashboard, and a user row
+is created here the first time they arrive.
+
+Two settings turn it on, both required:
+
+```
+CC_ACCESS_TEAM=yourteam          # or yourteam.cloudflareaccess.com
+CC_ACCESS_AUD=<application audience tag>
+```
+
+With either missing, Access sign-in is off entirely and the password form is
+the only way in. There is no configuration in which the app trusts an
+unverified header.
+
+`access.py` verifies the JWT signature against Cloudflare's published keys and
+checks the audience matches this application. It never falls back to the plain
+`Cf-Access-Authenticated-User-Email` header, which is only as trustworthy as
+whoever can reach the origin. A token that is present but invalid returns 403
+rather than quietly showing the password form, because that would hide a broken
+tunnel rather than surfacing it.
+
+Accounts created this way store `!access-only` in place of a password hash,
+which no password can produce, so they can only ever sign in through Access.
+Keep your own password account as a way back in if Cloudflare is having a bad
+day.
+
+`PyJWT` and `cryptography` are needed for this. On the Pi, prefer the distro
+packages over building from source:
+
+```bash
+sudo apt install python3-jwt python3-cryptography
+```
+
+## Export
+
+`/export.json` hands the signed-in account everything it has logged, as a
+download. Internal identifiers are stripped. The file includes the score row
+definitions and the solo threshold, so the numbers make sense without this
+codebase to read them against.
+
+This is not a nicety once other people are using it: their data lives on one
+Raspberry Pi with no account recovery, so being able to walk away with it is
+the least the app owes them.
+
+## Captains
 
 Two operations, each with a deliberate rule behind it:
 
@@ -364,7 +510,7 @@ Costs a fraction of a cent per game. Swap models with `CC_MODEL`.
 
 ```bash
 python3 test_app.py && python3 test_stats.py && python3 test_nav.py \
-  && python3 test_captains.py
+  && python3 test_captains.py && python3 test_security.py
 node test_sort.js   # needs jsdom: npm install jsdom
 ```
 
@@ -375,9 +521,12 @@ cases: a single data point, identical scores, and negative totals. The third
 covers page titles, breadcrumb structure, and that every icon the page and
 manifest reference actually resolves. `test_captains.py` covers the shared captain
 list: the admin gate, the rename cascade into both game columns, that retiring
-leaves an old game editable, and the `is_admin` migration. `test_sort.js` drives
-the record table's column sorting in a real DOM, which is the only way to catch
-a comparator bug. Uses a temporary database and leaves no
+leaves an old game editable, and the `is_admin` migration. `test_security.py` covers the parts that
+matter once the app is on the internet, and several of its checks try to break
+in rather than confirming the happy path: forged and expired Access tokens, the
+`none` algorithm, off-site redirect targets, and that a bare email header
+cannot sign anyone in. `test_sort.js` drives the record table's column sorting
+in a real DOM, which is the only way to catch a comparator bug. Uses a temporary database and leaves no
 trace.
 
 ## Layout notes

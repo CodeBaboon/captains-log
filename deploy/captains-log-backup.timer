@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly Captain's Log backup
+
+[Timer]
+# Sunday at 03:30, and catch up after a reboot if the Pi was off.
+OnCalendar=Sun 03:30
+Persistent=true
+RandomizedDelaySec=15m
+
+[Install]
+WantedBy=timers.target

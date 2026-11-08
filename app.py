@@ -1,16 +1,20 @@
 """Captain's Log, a solo game tracker for Star Trek: Captain's Chair."""
 
+import json
 import os
 import secrets
 from datetime import date, datetime
 from functools import wraps
 
+from urllib.parse import urlparse
+
 from flask import (
-    Flask, abort, flash, g, jsonify, redirect, render_template, request,
-    send_from_directory, session, url_for,
+    Flask, Response, abort, flash, g, jsonify, redirect, render_template,
+    request, session, url_for,
 )
 from werkzeug.security import check_password_hash
 
+import access
 import config
 import db
 import extract
@@ -21,6 +25,7 @@ app.config["SECRET_KEY"] = config.SECRET_KEY
 app.config["MAX_CONTENT_LENGTH"] = config.MAX_UPLOAD_BYTES
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = config.SECURE_COOKIES
 
 db.init_db()
 
@@ -28,12 +33,11 @@ db.init_db()
 def admin_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
-        if not session.get("user_id"):
-            return redirect(url_for("login", next=request.path))
-        g.user = db.get_user(session["user_id"])
-        if g.user is None:
+        user = _current_user()
+        if user is None:
             session.clear()
-            return redirect(url_for("login"))
+            return redirect(url_for("login", next=request.path))
+        g.user = user
         if not g.user["is_admin"]:
             abort(403)
         return view(*args, **kwargs)
@@ -41,15 +45,69 @@ def admin_required(view):
     return wrapped
 
 
+def _access_user():
+    """Sign in whoever Cloudflare Access has verified, creating them if new.
+
+    Returns the user row, or None when Access is off or the request carries no
+    token. A token that is present but invalid raises, because silently falling
+    back to the password form would hide a broken configuration.
+    """
+    if not access.enabled() or not access.token_from(request):
+        return None
+
+    email = access.identify(request)
+    user = db.get_user_by_email(email)
+    if user is None:
+        db.create_access_user(email, access.username_for(email))
+        user = db.get_user_by_email(email)
+
+    session["user_id"] = user["id"]
+    session.permanent = True
+    return user
+
+
+def _current_user():
+    """The signed-in user: Access first, then an existing session."""
+    try:
+        user = _access_user()
+    except access.AccessError:
+        # A bad token is a configuration problem, not a visitor problem.
+        app.logger.warning("Rejected an Access token", exc_info=True)
+        session.clear()
+        abort(403)
+
+    if user is not None:
+        return user
+
+    if session.get("user_id"):
+        return db.get_user(session["user_id"])
+    return None
+
+
+def safe_next(target):
+    """Only allow redirects to a path on this site.
+
+    `next` arrives from the query string, so without this a crafted link to our
+    own login page could bounce someone to another site after they sign in.
+    """
+    if not target:
+        return None
+    parsed = urlparse(target)
+    if parsed.scheme or parsed.netloc:
+        return None
+    if not target.startswith("/") or target.startswith("//"):
+        return None
+    return target
+
+
 def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
-        if not session.get("user_id"):
-            return redirect(url_for("login", next=request.path))
-        g.user = db.get_user(session["user_id"])
-        if g.user is None:
+        user = _current_user()
+        if user is None:
             session.clear()
-            return redirect(url_for("login"))
+            return redirect(url_for("login", next=request.path))
+        g.user = user
         return view(*args, **kwargs)
 
     return wrapped
@@ -112,6 +170,14 @@ def setup():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    # Behind Access, arriving at /login with a valid token signs you straight in.
+    if access.enabled() and access.token_from(request):
+        try:
+            if _access_user():
+                return redirect(safe_next(request.args.get("next")) or url_for("log"))
+        except access.AccessError:
+            abort(403)
+
     if db.user_count() == 0:
         return redirect(url_for("setup"))
 
@@ -123,8 +189,7 @@ def login():
             session.clear()
             session["user_id"] = user["id"]
             session.permanent = True
-            target = request.args.get("next") or url_for("log")
-            return redirect(target)
+            return redirect(safe_next(request.args.get("next")) or url_for("log"))
         flash("That username and password did not match.")
 
     return render_template("login.html")
@@ -565,6 +630,50 @@ def remove_game(game_id):
 
 
 # --------------------------------------------------------------------------
+# Export
+# --------------------------------------------------------------------------
+
+@app.get("/export.json")
+@login_required
+def export_games():
+    """Everything this account has logged, as a file they can keep.
+
+    Their data lives on one Raspberry Pi with no account recovery, so being
+    able to walk away with it is the least the app owes them.
+    """
+    games = db.export_games(g.user["id"])
+
+    for game in games:
+        # Internal identifiers mean nothing outside this database.
+        game.pop("user_id", None)
+        game.pop("photo_path", None)
+
+    payload = {
+        "application": "Captain's Log",
+        "exported_at": db.now_iso(),
+        "username": g.user["username"],
+        "game_count": len(games),
+        "solo_win_score": config.SOLO_WIN_SCORE,
+        "score_rows": [
+            {"key": key, "label": label, "bot_scores": bot}
+            for key, label, bot, _ in config.SCORE_ROWS
+        ],
+        "games": games,
+    }
+
+    body = json.dumps(payload, indent=2, ensure_ascii=False)
+    stamp = datetime.now().strftime("%Y%m%d")
+    return Response(
+        body,
+        mimetype="application/json",
+        headers={
+            "Content-Disposition":
+                f'attachment; filename="captains-log-{stamp}.json"',
+        },
+    )
+
+
+# --------------------------------------------------------------------------
 # Scoresheet scanning
 # --------------------------------------------------------------------------
 
@@ -593,4 +702,6 @@ def too_large(_):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
+    # Local development only. In production gunicorn serves the app and binds
+    # to 127.0.0.1, with the tunnel in front.
+    app.run(host="127.0.0.1", port=int(os.environ.get("PORT", 8080)))

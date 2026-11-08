@@ -11,11 +11,36 @@ BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = Path(os.environ.get("CC_DATA_DIR", BASE_DIR / "data"))
 DB_PATH = DATA_DIR / "captains_log.db"
 
-SECRET_KEY = os.environ.get("CC_SECRET_KEY", "dev-only-change-me")
+DEV_SECRET = "dev-only-change-me"
+SECRET_KEY = os.environ.get("CC_SECRET_KEY", DEV_SECRET)
+
+# Anything other than "development" is treated as production.
+ENV = os.environ.get("CC_ENV", "production").strip().lower()
+
+if SECRET_KEY == DEV_SECRET and ENV != "development":
+    raise RuntimeError(
+        "CC_SECRET_KEY is not set. The fallback key is published in this "
+        "repository, so anyone could forge a session with it. Generate one "
+        "with: python3 -c 'import secrets; print(secrets.token_hex(32))' "
+        "Set CC_ENV=development to run locally without it."
+    )
+
+# Session cookies are only sent over HTTPS unless running locally.
+SECURE_COOKIES = os.environ.get(
+    "CC_SECURE_COOKIES", "0" if ENV == "development" else "1"
+) == "1"
 
 # Seed account, only used the very first time the database is created.
 INITIAL_USER = os.environ.get("CC_INITIAL_USER", "dave")
 INITIAL_PASSWORD = os.environ.get("CC_INITIAL_PASSWORD", "")
+
+# Cloudflare Access. Both must be set for Access sign-in to work at all, so
+# there is no configuration where an unverified header is trusted.
+# ACCESS_TEAM is your team domain, e.g. "yourteam" or
+# "yourteam.cloudflareaccess.com". ACCESS_AUD is the application's Audience tag
+# from the Access application's settings.
+ACCESS_TEAM = os.environ.get("CC_ACCESS_TEAM", "").strip()
+ACCESS_AUD = os.environ.get("CC_ACCESS_AUD", "").strip()
 
 # Anthropic API, used for reading photographed scoresheets.
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")

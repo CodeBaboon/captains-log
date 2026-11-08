@@ -1,0 +1,8 @@
+[Unit]
+Description=Back up the Captain's Log database
+After=captains-log.service
+
+[Service]
+Type=oneshot
+User=dave
+ExecStart=/home/dave/Repos/captains-log/deploy/backup.sh
