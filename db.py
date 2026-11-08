@@ -213,6 +213,127 @@ def create_access_user(email, username):
     return cur.lastrowid
 
 
+def list_users():
+    """Every account, with the number of games each holds."""
+    conn = connect()
+    rows = conn.execute(
+        """
+        SELECT u.id, u.username, u.email, u.is_admin, u.created_at,
+               (SELECT COUNT(*) FROM games WHERE user_id = u.id) AS games
+          FROM users u
+         ORDER BY u.id
+        """
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def rename_user(user_id, username):
+    """Change an account's display name. Names stay unique, ignoring case."""
+    username = (username or "").strip()
+    if not username:
+        raise ValueError("Enter a name.")
+    if len(username) > 40:
+        raise ValueError("That name is too long.")
+
+    conn = connect()
+    try:
+        clash = conn.execute(
+            "SELECT 1 FROM users WHERE username = ? COLLATE NOCASE AND id != ?",
+            (username, user_id),
+        ).fetchone()
+        if clash:
+            raise ValueError(f"{username} is already taken.")
+        with conn:
+            conn.execute(
+                "UPDATE users SET username = ? WHERE id = ?", (username, user_id)
+            )
+    finally:
+        conn.close()
+    return username
+
+
+def set_user_email(user_id, email):
+    """Point an account at a different Access email, or clear it.
+
+    This is what keeps someone's history when their email changes: update the
+    Cloudflare policy, update it here, and their next sign-in finds the
+    existing account rather than creating an empty one.
+    """
+    email = (email or "").strip().lower() or None
+
+    conn = connect()
+    try:
+        if email:
+            clash = conn.execute(
+                "SELECT username FROM users "
+                "WHERE email = ? COLLATE NOCASE AND id != ?",
+                (email, user_id),
+            ).fetchone()
+            if clash:
+                raise ValueError(f"{email} already belongs to {clash['username']}.")
+        with conn:
+            conn.execute("UPDATE users SET email = ? WHERE id = ?", (email, user_id))
+    finally:
+        conn.close()
+    return email
+
+
+def set_user_admin(user_id, is_admin):
+    """Grant or remove admin. Refuses to remove the last administrator."""
+    conn = connect()
+    try:
+        if not is_admin:
+            others = conn.execute(
+                "SELECT COUNT(*) AS n FROM users WHERE is_admin = 1 AND id != ?",
+                (user_id,),
+            ).fetchone()["n"]
+            if others == 0:
+                raise ValueError(
+                    "That is the only administrator. Promote someone else first."
+                )
+        with conn:
+            conn.execute(
+                "UPDATE users SET is_admin = ? WHERE id = ?",
+                (1 if is_admin else 0, user_id),
+            )
+    finally:
+        conn.close()
+
+
+def delete_user(user_id):
+    """Remove an account. Refused while it still holds games."""
+    conn = connect()
+    try:
+        row = conn.execute(
+            "SELECT username, is_admin FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+        if row is None:
+            raise ValueError("No such account.")
+
+        games = conn.execute(
+            "SELECT COUNT(*) AS n FROM games WHERE user_id = ?", (user_id,)
+        ).fetchone()["n"]
+        if games:
+            raise ValueError(
+                f"{row['username']} has {games} game{'' if games == 1 else 's'}. "
+                "Deleting would take the history with it."
+            )
+
+        if row["is_admin"]:
+            others = conn.execute(
+                "SELECT COUNT(*) AS n FROM users WHERE is_admin = 1 AND id != ?",
+                (user_id,),
+            ).fetchone()["n"]
+            if others == 0:
+                raise ValueError("That is the only administrator.")
+
+        with conn:
+            conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    finally:
+        conn.close()
+
+
 def create_user(username, password, is_admin=None):
     """Create an account. The first one ever made administers the captain list."""
     conn = connect()

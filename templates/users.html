@@ -1,0 +1,84 @@
+{% set page_title = "Players" %}
+{% set crumbs = [{'label': 'Log', 'url': url_for('log')},
+                 {'label': 'Players'}] %}
+{% extends "base.html" %}
+{% block bodyclass %}page-users{% endblock %}
+{% block heading %}Players{% endblock %}
+{% block meta %}{{ users | length }} account{{ '' if users | length == 1 else 's' }}{% endblock %}
+
+{% block content %}
+
+{% if access_on %}
+  <p class="solo-note">
+    Invite someone in Cloudflare Access and an account appears here the first
+    time they sign in.
+  </p>
+{% endif %}
+
+<section class="panel">
+  {% for account in users %}
+    <details class="cap">
+      <summary>
+        <span class="cap-summary">
+          <span class="cap-name">{{ account.username }}</span>
+          {% if account.is_admin %}<span class="cap-tag">Admin</span>{% endif %}
+          <span class="cap-games">
+            {{ account.games }} game{{ '' if account.games == 1 else 's' }}
+          </span>
+          <span class="picker-cue">Edit</span>
+        </span>
+      </summary>
+
+      <div class="cap-body">
+        <form method="post" action="{{ url_for('users_update', user_id=account.id) }}">
+          <input type="hidden" name="action" value="rename">
+          <div class="field">
+            <span class="field-label">Name</span>
+            <input type="text" name="username" value="{{ account.username }}"
+                   maxlength="40" autocomplete="off" required>
+          </div>
+          <button class="btn btn-ghost btn-block" type="submit">Save name</button>
+        </form>
+
+        <form method="post" action="{{ url_for('users_update', user_id=account.id) }}">
+          <input type="hidden" name="action" value="email">
+          <div class="field">
+            <span class="field-label">Email</span>
+            <input type="email" name="email" value="{{ account.email or '' }}"
+                   placeholder="name@example.com" autocomplete="off">
+          </div>
+          <button class="btn btn-ghost btn-block" type="submit">Save email</button>
+        </form>
+
+        <p class="cap-note">
+          This is the address Cloudflare Access signs them in with. Changing it
+          here keeps their games when their email changes.
+        </p>
+
+        <div class="cap-actions">
+          {% if account.is_admin %}
+            <form method="post" action="{{ url_for('users_update', user_id=account.id) }}">
+              <input type="hidden" name="action" value="demote">
+              <button class="btn btn-quiet" type="submit">Remove admin</button>
+            </form>
+          {% else %}
+            <form method="post" action="{{ url_for('users_update', user_id=account.id) }}">
+              <input type="hidden" name="action" value="promote">
+              <button class="btn btn-quiet" type="submit">Make admin</button>
+            </form>
+          {% endif %}
+
+          {% if not account.games %}
+            <form method="post" action="{{ url_for('users_update', user_id=account.id) }}"
+                  onsubmit="return confirm('Delete {{ account.username }}?');">
+              <input type="hidden" name="action" value="delete">
+              <button class="btn btn-quiet" type="submit">Delete</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    </details>
+  {% endfor %}
+</section>
+
+{% endblock %}

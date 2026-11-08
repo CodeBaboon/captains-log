@@ -54,8 +54,10 @@
           <span class="bar-menu-name">{{ current_user.username }}</span>
         </summary>
         <nav class="bar-menu-panel" aria-label="Account">
+          <a class="menu-item" href="{{ url_for('settings') }}">Settings</a>
           {% if current_user.is_admin %}
             <a class="menu-item" href="{{ url_for('captains_page') }}">Manage captains</a>
+            <a class="menu-item" href="{{ url_for('users_page') }}">Players</a>
           {% endif %}
           <a class="menu-item" href="{{ url_for('export_games') }}"
              download>Export my games</a>

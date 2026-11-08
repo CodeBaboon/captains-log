@@ -240,6 +240,60 @@ def log_page():
 
 
 # --------------------------------------------------------------------------
+# Settings and accounts
+# --------------------------------------------------------------------------
+
+@app.route("/settings", methods=["GET", "POST"])
+@login_required
+def settings():
+    if request.method == "POST":
+        try:
+            db.rename_user(g.user["id"], request.form.get("username"))
+            flash("Name updated.")
+        except ValueError as exc:
+            flash(str(exc))
+        return redirect(url_for("settings"))
+
+    return render_template(
+        "settings.html",
+        account=db.get_user(g.user["id"]),
+        game_count=db.count_games(g.user["id"]),
+        access_on=access.enabled(),
+    )
+
+
+@app.get("/users")
+@admin_required
+def users_page():
+    return render_template("users.html", users=db.list_users(),
+                           access_on=access.enabled())
+
+
+@app.post("/users/<int:user_id>")
+@admin_required
+def users_update(user_id):
+    action = request.form.get("action")
+
+    try:
+        if action == "email":
+            db.set_user_email(user_id, request.form.get("email"))
+        elif action == "rename":
+            db.rename_user(user_id, request.form.get("username"))
+        elif action == "promote":
+            db.set_user_admin(user_id, True)
+        elif action == "demote":
+            db.set_user_admin(user_id, False)
+        elif action == "delete":
+            db.delete_user(user_id)
+        else:
+            flash("Unknown action.")
+    except ValueError as exc:
+        flash(str(exc))
+
+    return redirect(url_for("users_page"))
+
+
+# --------------------------------------------------------------------------
 # Captain list
 # --------------------------------------------------------------------------
 

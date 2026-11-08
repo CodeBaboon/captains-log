@@ -416,6 +416,7 @@ body {
 
 input[type="text"],
 input[type="date"],
+input[type="email"],
 input[type="password"],
 select {
   flex: 1 1 auto;
@@ -1283,6 +1284,17 @@ select {
   white-space: nowrap;
 }
 
+.cap-tag {
+  flex: none;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lcars-gold);
+  border: 1px solid #3A3A3A;
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
 .cap-games {
   flex: none;
   margin-right: 10px;
@@ -1302,6 +1314,8 @@ select {
   padding: 4px 10px 4px 12px;
   margin-top: 6px;
 }
+
+.cap-body input[type="email"] { flex: 1 1 auto; min-width: 0; }
 
 .cap-add input[type="text"] {
   flex: 1 1 auto;

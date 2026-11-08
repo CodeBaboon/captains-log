@@ -368,6 +368,32 @@ packages over building from source:
 sudo apt install python3-jwt python3-cryptography
 ```
 
+## Accounts
+
+`/settings` is for everyone: change your display name, see which email signs
+you in, and export your games.
+
+`/users` is admin only. It lists every account with the number of games it
+holds, and allows four things:
+
+- **Set the email.** This is the one that matters. It is the address Cloudflare
+  Access matches on, so when someone's email changes you update the Cloudflare
+  policy and then this field, and their next sign-in finds the existing account
+  with all its history rather than creating an empty one. Without it, an email
+  change silently orphans their games.
+- **Rename.** Names stay unique, ignoring case.
+- **Promote or demote.** The last administrator cannot step down, so the
+  install can never be left without one.
+- **Delete.** Refused while the account still holds games, since deleting would
+  take the history with it.
+
+An account's email is unique: claiming one that belongs to another account is
+refused rather than silently moving it.
+
+Accounts appear here on their own. Invite someone in Cloudflare Access and a
+row shows up the first time they sign in, with a username derived from their
+email that either of you can change afterwards.
+
 ## Export
 
 `/export.json` hands the signed-in account everything it has logged, as a
@@ -454,6 +480,32 @@ packages over building from source:
 sudo apt install python3-jwt python3-cryptography
 ```
 
+## Accounts
+
+`/settings` is for everyone: change your display name, see which email signs
+you in, and export your games.
+
+`/users` is admin only. It lists every account with the number of games it
+holds, and allows four things:
+
+- **Set the email.** This is the one that matters. It is the address Cloudflare
+  Access matches on, so when someone's email changes you update the Cloudflare
+  policy and then this field, and their next sign-in finds the existing account
+  with all its history rather than creating an empty one. Without it, an email
+  change silently orphans their games.
+- **Rename.** Names stay unique, ignoring case.
+- **Promote or demote.** The last administrator cannot step down, so the
+  install can never be left without one.
+- **Delete.** Refused while the account still holds games, since deleting would
+  take the history with it.
+
+An account's email is unique: claiming one that belongs to another account is
+refused rather than silently moving it.
+
+Accounts appear here on their own. Invite someone in Cloudflare Access and a
+row shows up the first time they sign in, with a username derived from their
+email that either of you can change afterwards.
+
 ## Export
 
 `/export.json` hands the signed-in account everything it has logged, as a
@@ -511,7 +563,8 @@ Costs a fraction of a cent per game. Swap models with `CC_MODEL`.
 ```bash
 python3 check_syntax.py
 python3 test_app.py && python3 test_stats.py && python3 test_nav.py \
-  && python3 test_captains.py && python3 test_security.py
+  && python3 test_captains.py && python3 test_security.py \
+  && python3 test_users.py
 node test_sort.js   # needs jsdom: npm install jsdom
 ```
 
@@ -529,8 +582,11 @@ expression, which 3.12 allows and 3.11 does not. `test_security.py` covers the p
 matter once the app is on the internet, and several of its checks try to break
 in rather than confirming the happy path: forged and expired Access tokens, the
 `none` algorithm, off-site redirect targets, and that a bare email header
-cannot sign anyone in. `test_sort.js` drives the record table's column sorting
-in a real DOM, which is the only way to catch a comparator bug. Uses a temporary database and leaves no
+cannot sign anyone in. `test_users.py` covers settings and the
+player admin page, concentrating on the refusals: the last administrator
+cannot step down, an email cannot be claimed twice, and an account holding
+games cannot be deleted. `test_sort.js` drives the record table's column
+sorting in a real DOM, which is the only way to catch a comparator bug. Uses a temporary database and leaves no
 trace.
 
 ## Layout notes
