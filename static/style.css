@@ -80,6 +80,12 @@ body {
   display: flex;
   gap: 4px;
   margin: 7px 0 16px;
+  position: relative;
+}
+
+.divider:not(.divider-foot) > .divider-cap,
+.divider:not(.divider-foot) > .divider-bar {
+  height: 16px;
 }
 
 .divider-cap {
@@ -1325,76 +1331,90 @@ select {
 
 /* --- Account menu ------------------------------------------------------ */
 
-.menu {
-  margin-top: 24px;
-  background: var(--panel);
-  border-radius: var(--radius);
+/* The menu is the right-hand cap of the divider, so it costs no extra row. */
+.bar-menu {
+  flex: 0 0 auto;
+  position: relative;
+  max-width: 44%;
 }
 
-.menu summary {
-  padding: 10px 14px;
+.bar-menu summary {
+  display: block;
+  height: 16px;
+  padding: 0 12px;
+  background: var(--lcars-blue);
+  border-radius: 0 999px 999px 0;
+  color: #0F0F2A;
   cursor: pointer;
   list-style: none;
+  position: relative;
 }
 
-/* summary resists display:flex in some engines, so the row is a child span. */
-.menu-summary {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.bar-menu summary::-webkit-details-marker { display: none; }
+
+/* A 16px strip is too thin to tap, so the hit area reaches past it without
+   changing anything you can see. */
+.bar-menu summary::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -12px;
+  bottom: -12px;
 }
 
-.menu summary::-webkit-details-marker { display: none; }
+.bar-menu[open] summary { background: var(--lcars-orange); color: #1A1206; }
 
-.menu summary:focus-visible {
-  outline: 2px solid var(--lcars-orange);
-  outline-offset: 2px;
+.bar-menu summary:hover { background: var(--lcars-gold); color: #1A1206; }
+
+.bar-menu summary:focus-visible {
+  outline: 2px solid var(--lcars-gold);
+  outline-offset: 3px;
 }
 
-.menu-label {
-  flex: 1;
-  min-width: 0;
-  font-size: 12px;
+.bar-menu-name {
+  display: block;
+  font-size: 10px;
+  line-height: 16px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--lcars-blue);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.menu-cue {
-  flex: none;
-  font-size: 11px;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--lcars-orange);
-}
-
-.menu[open] .menu-cue { color: var(--text-dim); }
-
-.menu-body {
-  padding: 0 10px 10px;
+.bar-menu-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  min-width: 190px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  background: #111;
+  border: 1px solid #2A2A2A;
+  border-radius: var(--radius);
+  padding: 7px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6);
 }
 
-.menu-body form { display: flex; }
+.bar-menu-panel form { display: flex; }
 
 .menu-item {
   display: block;
   width: 100%;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 12px;
   letter-spacing: 0.07em;
   text-transform: uppercase;
   text-align: left;
   text-decoration: none;
+  white-space: nowrap;
   color: var(--lcars-gold);
   background: #1F1F1F;
   border: 0;
-  border-left: 8px solid var(--lcars-orange);
+  border-left: 7px solid var(--lcars-orange);
   border-radius: 0 999px 999px 0;
   padding: 9px 14px;
   cursor: pointer;

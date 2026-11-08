@@ -45,9 +45,25 @@
     <span class="masthead-meta">{% block meta %}{% endblock %}</span>
   </header>
 
-  <div class="divider" aria-hidden="true">
-    <span class="divider-cap"></span>
-    <span class="divider-bar"></span>
+  <div class="divider">
+    <span class="divider-cap" aria-hidden="true"></span>
+    <span class="divider-bar" aria-hidden="true"></span>
+    {% if current_user %}
+      <details class="bar-menu" id="account-menu">
+        <summary aria-label="Account menu">
+          <span class="bar-menu-name">{{ current_user.username }}</span>
+        </summary>
+        <nav class="bar-menu-panel" aria-label="Account">
+          {% if current_user.is_admin %}
+            <a class="menu-item" href="{{ url_for('captains_page') }}">Manage captains</a>
+          {% endif %}
+          <form method="post" action="{{ url_for('logout') }}"
+                onsubmit="return confirm('Sign out of Captain\'s Log?');">
+            <button class="menu-item menu-item-quiet" type="submit">Sign out</button>
+          </form>
+        </nav>
+      </details>
+    {% endif %}
   </div>
 
   {% with messages = get_flashed_messages() %}
@@ -60,26 +76,8 @@
 
   {% block content %}{% endblock %}
 
-  {% if current_user %}
-    <details class="menu">
-      <summary>
-        <span class="menu-summary">
-          <span class="menu-label">{{ current_user.username }}</span>
-          <span class="menu-cue">Menu</span>
-        </span>
-      </summary>
-      <div class="menu-body">
-        {% if current_user.is_admin %}
-          <a class="menu-item" href="{{ url_for('captains_page') }}">Manage captains</a>
-        {% endif %}
-        <form method="post" action="{{ url_for('logout') }}">
-          <button class="menu-item menu-item-quiet" type="submit">Sign out</button>
-        </form>
-      </div>
-    </details>
-  {% endif %}
-
 </div>
+<script src="{{ url_for('static', filename='menu.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

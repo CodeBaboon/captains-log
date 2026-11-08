@@ -216,12 +216,22 @@ nothing to say about a captain you have never played.
 
 ## Navigation and titles
 
-The account menu lives in `base.html` and renders on every signed-in page, so
-the captain list is reachable from anywhere rather than only from the bottom of
-the log. A context processor exposes `current_user`, reusing the row
-`login_required` already loaded rather than issuing another query. The
-Manage captains link only renders for administrators; the route checks
-independently.
+The account menu is the right-hand cap of the divider bar, so it costs no extra
+row and appears on every signed-in page. The panel drops downward over the
+content, which is the point: an earlier version sat at the foot of the page and
+its options opened below the fold.
+
+The top divider is 16px rather than 12px so a name fits in the cap, and the
+cap's hit area reaches 12px above and below via a pseudo-element, since a 16px
+strip is too thin to tap reliably. Dividers inside panels stay at 12px.
+
+It is a `<details>`, so it works without JavaScript; `menu.js` only adds
+closing on an outside click or Escape. Signing out asks for confirmation,
+because the control is now one tap from every page.
+
+A context processor exposes `current_user`, reusing the row `login_required`
+already loaded rather than issuing another query. The Manage captains link only
+renders for administrators, and the route checks independently.
 
 
 Every page except the log and the auth screens defines two things at the top of
