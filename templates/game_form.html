@@ -14,8 +14,7 @@
 {% macro captain_picker(field, label, current, placeholder) -%}
     <div class="field">
       <label class="field-label" for="{{ field }}">{{ label }}</label>
-      <select id="{{ field }}" name="{{ field }}" class="captain-select"
-              data-target="{{ field }}-add" required>
+      <select id="{{ field }}" name="{{ field }}" required>
         <option value="">Choose</option>
         {% for box in boxes %}
           {% set members = captains | selectattr('box', 'equalto', box) | list %}
@@ -28,16 +27,6 @@
             </optgroup>
           {% endif %}
         {% endfor %}
-        <option value="__new__">Add a captain</option>
-      </select>
-    </div>
-
-    <div class="field field-add" id="{{ field }}-add" hidden>
-      <span class="field-label">New</span>
-      <input type="text" name="{{ field }}_new" placeholder="{{ placeholder }}"
-             maxlength="60" autocomplete="off">
-      <select name="{{ field }}_box" class="box-select" aria-label="Which box">
-        {% for box in boxes %}<option value="{{ box }}">{{ box }}</option>{% endfor %}
       </select>
     </div>
 {%- endmacro %}

@@ -67,10 +67,7 @@
     var botSelect = document.getElementById('bot_captain');
     if (botSelect) {
       botSelect.required = !solo;
-      if (solo) {
-        botSelect.value = '';
-        toggleAddField(botSelect);
-      }
+      if (solo) botSelect.value = '';
     }
 
     BOT_KEYS.forEach(function (key) {
@@ -100,7 +97,6 @@
     if (event.target.id === 'bot_difficulty') applyRank();
     if (event.target.name === 'ending') applyEnding();
     if (event.target.name === 'played_on') updateStardate();
-    if (event.target.classList.contains('captain-select')) toggleAddField(event.target);
   });
 
   // Decorative stardate in the header.
@@ -141,8 +137,9 @@
     if (el) el.value = value;
   }
 
-  // Match a scanned name against the dropdown, ignoring case. If it is not on
-  // the list, drop into the add field rather than silently discarding it.
+  // Match a scanned name against the dropdown, ignoring case. A name that is
+  // not on the list is left for the person to resolve, since captains are
+  // managed on their own page.
   function setCaptain(field, value) {
     if (!value) return;
     var select = document.getElementById(field);
@@ -153,26 +150,12 @@
     for (var i = 0; i < options.length; i++) {
       if (options[i].value.toLowerCase() === wanted) {
         select.value = options[i].value;
-        toggleAddField(select);
         return;
       }
     }
-
-    select.value = '__new__';
-    toggleAddField(select);
-    var typed = document.querySelector('input[name="' + field + '_new"]');
-    if (typed) typed.value = value.trim();
+    unmatched.push(value.trim());
   }
 
-  function toggleAddField(select) {
-    var panel = document.getElementById(select.dataset.target);
-    if (!panel) return;
-    var adding = select.value === '__new__';
-    panel.hidden = !adding;
-    var typed = panel.querySelector('input[type="text"]');
-    if (typed) typed.required = adding;
-    if (!adding && typed) typed.value = '';
-  }
 
   function setRadio(name, value) {
     if (!value) return;
@@ -180,7 +163,10 @@
     if (el) el.checked = true;
   }
 
+  var unmatched = [];
+
   function fill(data) {
+    unmatched = [];
     setCaptain('player_captain', data.player_captain);
     setCaptain('bot_captain', data.bot_captain);
     setField('bot_difficulty', data.bot_difficulty);
@@ -197,8 +183,12 @@
     applyBoardSide();
     recalculate();
 
-    if (data.warnings && data.warnings.length) {
-      setStatus('Filled in. ' + data.warnings.join(' ') + ' Check before saving.', 'warn');
+    var warnings = (data.warnings || []).slice();
+    if (unmatched.length) {
+      warnings.push('Not on the captain list: ' + unmatched.join(', ') + '.');
+    }
+    if (warnings.length) {
+      setStatus('Filled in. ' + warnings.join(' ') + ' Check before saving.', 'warn');
     } else {
       setStatus('Filled in from the photo. Check it, then save.', 'ok');
     }
@@ -238,8 +228,6 @@
     });
   }
 
-  Array.prototype.forEach.call(
-    document.querySelectorAll('.captain-select'), toggleAddField);
   applyRank();
   applyBoardSide();
   applyEnding();

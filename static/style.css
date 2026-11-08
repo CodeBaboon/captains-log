@@ -1243,3 +1243,85 @@ select {
   .led-sort { font-size: 9px; letter-spacing: 0.05em; }
   .ledger tbody td { font-size: 12px; }
 }
+
+/* --- Captain admin ----------------------------------------------------- */
+
+.add-captain { display: flex; gap: 8px; flex-wrap: wrap; }
+.add-captain input[type="text"] { flex: 2 1 140px; }
+.add-captain select { flex: 1 1 120px; }
+.add-captain .btn { flex: 0 0 auto; margin-top: 0; }
+
+.cap {
+  background: var(--panel);
+  border-left: 8px solid var(--lcars-orange);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  margin-bottom: 5px;
+}
+
+.cap-retired { border-left-color: #3A3A3A; }
+.cap-retired .cap-name { color: var(--text-dim); }
+
+.cap summary { padding: 9px 12px; cursor: pointer; list-style: none; }
+.cap summary::-webkit-details-marker { display: none; }
+
+.cap summary:focus-visible {
+  outline: 2px solid var(--lcars-orange);
+  outline-offset: 2px;
+}
+
+.cap-summary { display: flex; align-items: center; gap: 10px; }
+
+.cap-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--lcars-gold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cap-tag {
+  flex: none;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border: 1px solid #3A3A3A;
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+.cap-games {
+  flex: none;
+  margin-right: 10px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lcars-blue);
+}
+
+.cap-body { padding: 4px 12px 12px; }
+.cap-body .field { margin-bottom: 9px; }
+.cap-body .btn-block { margin-top: 4px; }
+
+.cap-note {
+  margin: 10px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.cap-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #2A2A2A;
+}
+
+.cap-actions form { flex: 1; display: flex; }
+.cap-actions .btn { width: 100%; padding: 7px; }

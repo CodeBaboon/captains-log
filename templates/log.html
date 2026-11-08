@@ -46,6 +46,10 @@
   </div>
 {% endif %}
 
+{% if is_admin %}
+  <a class="btn btn-quiet btn-block" href="{{ url_for('captains_page') }}">Manage captains</a>
+{% endif %}
+
 <form class="logout" method="post" action="{{ url_for('logout') }}">
   <button class="btn btn-quiet" type="submit">Sign out</button>
 </form>

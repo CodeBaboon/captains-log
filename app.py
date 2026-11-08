@@ -25,6 +25,22 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 db.init_db()
 
 
+def admin_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not session.get("user_id"):
+            return redirect(url_for("login", next=request.path))
+        g.user = db.get_user(session["user_id"])
+        if g.user is None:
+            session.clear()
+            return redirect(url_for("login"))
+        if not g.user["is_admin"]:
+            abort(403)
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
 def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
@@ -127,6 +143,7 @@ def log():
         stats=db.stats(g.user["id"]),
         has_more=total > config.PAGE_SIZE,
         next_offset=config.PAGE_SIZE,
+        is_admin=bool(g.user["is_admin"]),
     )
 
 
@@ -148,6 +165,66 @@ def log_page():
             "next_offset": offset + config.PAGE_SIZE,
         }
     )
+
+
+# --------------------------------------------------------------------------
+# Captain list
+# --------------------------------------------------------------------------
+
+@app.get("/captains")
+@admin_required
+def captains_page():
+    usage = db.captain_usage()
+    captains = db.list_captains(include_retired=True)
+    for captain in captains:
+        captain["games"] = usage.get(captain["name"], 0)
+    return render_template(
+        "captains.html",
+        captains=captains,
+        boxes=db.BOXES,
+        total=sum(usage.values()),
+    )
+
+
+@app.post("/captains")
+@admin_required
+def captains_add():
+    name = (request.form.get("name") or "").strip()
+    box = request.form.get("box") or "Other"
+
+    if not name:
+        flash("Enter a name.")
+    elif len(name) > 60:
+        flash("That name is too long.")
+    elif db.captain_exists(name):
+        flash(f"{db.captain_exists(name)} is already on the list.")
+    else:
+        db.add_captain(name, box)
+
+    return redirect(url_for("captains_page"))
+
+
+@app.post("/captains/<int:captain_id>")
+@admin_required
+def captains_update(captain_id):
+    action = request.form.get("action")
+
+    try:
+        if action == "rename":
+            db.rename_captain(captain_id, request.form.get("name"),
+                              request.form.get("box"))
+        elif action == "retire":
+            db.set_captain_active(captain_id, False)
+        elif action == "restore":
+            db.set_captain_active(captain_id, True)
+        elif action == "delete":
+            db.delete_captain(captain_id)
+        else:
+            flash("Unknown action.")
+    except ValueError as exc:
+        flash(str(exc))
+
+    return redirect(url_for("captains_page"))
 
 
 # --------------------------------------------------------------------------
@@ -260,22 +337,30 @@ def captain_page(name):
 # Game entry
 # --------------------------------------------------------------------------
 
-def _resolve_captain(form, field, label):
-    """Take a captain from the dropdown, or from the reveal-on-demand text box.
+def _pickable_captains(game=None):
+    """Active captains, plus any retired one this game already uses."""
+    captains = db.list_captains()
+    if game is None:
+        return captains
 
-    Only names already on the list, or ones typed into the explicit add field,
-    are accepted. That stops a typo from quietly minting a new captain.
+    listed = {c["name"] for c in captains}
+    for field in ("player_captain", "bot_captain"):
+        name = game[field] if game[field] else None
+        if name and name not in listed:
+            extra = [c for c in db.list_captains(include_retired=True)
+                     if c["name"] == name]
+            captains = captains + extra
+            listed.add(name)
+    return captains
+
+
+def _resolve_captain(form, field, label):
+    """Take a captain from the dropdown.
+
+    Captains are managed on their own page, so logging a game can only pick
+    from the list. That stops a typo from quietly minting a new captain.
     """
     choice = (form.get(field) or "").strip()
-
-    if choice == "__new__":
-        typed = (form.get(field + "_new") or "").strip()
-        if not typed:
-            raise ValueError(f"Enter a name for {label}.")
-        if len(typed) > 60:
-            raise ValueError("That captain name is too long.")
-        return db.add_captain(typed, form.get(field + "_box") or "Other")
-
     if not choice:
         raise ValueError(f"Choose {label}.")
 
@@ -460,7 +545,7 @@ def edit_game(game_id):
         abort(404)
     return render_template(
         "game_form.html",
-        captains=db.list_captains(),
+        captains=_pickable_captains(game),
         boxes=db.BOXES,
         difficulties=config.DIFFICULTIES,
         solo_win_score=config.SOLO_WIN_SCORE,

@@ -152,50 +152,13 @@ check("missing captain rejected", b"Choose your captain" in r.data)
 r = client.post("/games/new", data=form(player_captain="Sulu"), follow_redirects=True)
 check("unlisted captain rejected", b"not on the captain list" in r.data)
 
-r = client.post("/games/new", data=form(player_captain="__new__",
-                                        player_captain_new=""), follow_redirects=True)
-check("empty new captain rejected", b"Enter a name for your captain" in r.data)
-
-r = client.post("/games/new", data=form(played_on="nonsense"), follow_redirects=True)
-check("bad date rejected", b"valid date" in r.data)
-
-r = client.post("/games/new", data=form(bot_difficulty=""), follow_redirects=True)
-check("missing rank rejected", b"Choose a rank" in r.data)
-
-r = client.post("/games/new", data=form(bot_difficulty="Admiral of the Fleet"),
-                follow_redirects=True)
-check("invented rank rejected", b"not a rank" in r.data)
-
-r = client.post("/games/new", data=form(bot_captain=""), follow_redirects=True)
-check("ranked game still needs an opponent", b"Choose the bot" in r.data)
-
-r = client.get("/games/new")
-check("rank has no default", b'<option value="">Choose</option>' in r.data)
-check("lieutenant not preselected",
-      b'value="Lieutenant" selected' not in r.data)
+r = client.post("/games/new", data=form(player_captain="Sulu"), follow_redirects=True)
+check("inline captain creation is gone", b"not on the captain list" in r.data)
 
 print("\ncaptains")
 client.post("/games/new", data=form(bot_captain="Rebner"))
 names = [c["name"] for c in db.list_captains()]
 check("seeded captains present", "Picard" in names and "Soval" in names)
-
-client.post("/games/new", data=form(player_captain="__new__",
-                                    player_captain_new="Tuvok",
-                                    player_captain_box="Expansion"))
-names = [c["name"] for c in db.list_captains()]
-check("deliberate addition is kept", "Tuvok" in names)
-check("addition lands in the chosen box",
-      any(c["name"] == "Tuvok" and c["box"] == "Expansion" for c in db.list_captains()))
-
-client.post("/games/new", data=form(player_captain="__new__",
-                                    player_captain_new="tuvok"))
-tuvoks = [c for c in db.list_captains() if c["name"].lower() == "tuvok"]
-check("case variants do not fork a captain", len(tuvoks) == 1,
-      f"got {[c['name'] for c in tuvoks]}")
-
-row = db.list_games(1)[0]
-check("existing spelling wins", row["player_captain"] == "Tuvok",
-      f"got {row['player_captain']}")
 
 check("lookup is case-insensitive", db.captain_exists("GEORGIOU") == "Georgiou")
 check("unknown lookup returns nothing", db.captain_exists("Janeway") is None)

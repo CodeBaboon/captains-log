@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
     id            INTEGER PRIMARY KEY,
     username      TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
+    is_admin      INTEGER NOT NULL DEFAULT 0,
     created_at    TEXT NOT NULL
 );
 
@@ -86,6 +87,18 @@ def connect():
     return conn
 
 
+def _migrate(conn):
+    """Small, idempotent schema additions for databases created earlier."""
+    columns = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
+    if "is_admin" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
+        # The original account becomes the administrator.
+        conn.execute(
+            "UPDATE users SET is_admin = 1 "
+            "WHERE id = (SELECT MIN(id) FROM users)"
+        )
+
+
 def init_db():
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     config.PHOTO_DIR.mkdir(parents=True, exist_ok=True)
@@ -93,6 +106,7 @@ def init_db():
     conn = connect()
     with conn:
         conn.executescript(SCHEMA)
+        _migrate(conn)
         for name, box in SEED_CAPTAINS:
             conn.execute(
                 "INSERT OR IGNORE INTO captains (name, box) VALUES (?, ?)",
@@ -102,8 +116,8 @@ def init_db():
         existing = conn.execute("SELECT COUNT(*) AS n FROM users").fetchone()["n"]
         if existing == 0 and config.INITIAL_PASSWORD:
             conn.execute(
-                "INSERT INTO users (username, password_hash, created_at) "
-                "VALUES (?, ?, ?)",
+                "INSERT INTO users (username, password_hash, is_admin, created_at) "
+                "VALUES (?, ?, 1, ?)",
                 (
                     config.INITIAL_USER,
                     generate_password_hash(config.INITIAL_PASSWORD),
@@ -136,37 +150,157 @@ def user_count():
     return n
 
 
-def create_user(username, password):
+def create_user(username, password, is_admin=None):
+    """Create an account. The first one ever made administers the captain list."""
     conn = connect()
     with conn:
+        if is_admin is None:
+            existing = conn.execute("SELECT COUNT(*) AS n FROM users").fetchone()["n"]
+            is_admin = existing == 0
         cur = conn.execute(
-            "INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)",
-            (username, generate_password_hash(password), now_iso()),
+            "INSERT INTO users (username, password_hash, is_admin, created_at) "
+            "VALUES (?, ?, ?, ?)",
+            (username, generate_password_hash(password), 1 if is_admin else 0, now_iso()),
         )
     conn.close()
     return cur.lastrowid
 
 
-def list_captains():
+def list_captains(include_retired=False):
+    """Captains available to pick. Retired ones are hidden unless asked for."""
+    where = "" if include_retired else "WHERE active = 1"
     conn = connect()
     rows = conn.execute(
-        "SELECT name, box FROM captains WHERE active = 1 ORDER BY box, name"
+        f"SELECT id, name, box, active FROM captains {where} ORDER BY box, name"
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def captain_usage():
+    """How many games reference each captain name, across both columns.
+
+    Used by the admin page to show what a change would affect, and to decide
+    whether a captain can be deleted outright.
+    """
+    conn = connect()
+    rows = conn.execute(
+        """
+        SELECT name, SUM(n) AS games FROM (
+            SELECT player_captain AS name, COUNT(*) AS n FROM games
+             WHERE player_captain != '' GROUP BY player_captain
+            UNION ALL
+            SELECT bot_captain AS name, COUNT(*) AS n FROM games
+             WHERE bot_captain != '' GROUP BY bot_captain
+        ) GROUP BY name COLLATE NOCASE
+        """
+    ).fetchall()
+    conn.close()
+    return {r["name"]: r["games"] for r in rows}
+
+
+def get_captain(captain_id):
+    conn = connect()
+    row = conn.execute(
+        "SELECT id, name, box, active FROM captains WHERE id = ?", (captain_id,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def rename_captain(captain_id, new_name, box=None):
+    """Rename a captain and carry every game it appears in along with it.
+
+    Games store captain names as text, so a rename that did not cascade would
+    orphan the history under the old spelling.
+    """
+    new_name = (new_name or "").strip()
+    if not new_name:
+        raise ValueError("A captain needs a name.")
+    if len(new_name) > 60:
+        raise ValueError("That name is too long.")
+
+    current = get_captain(captain_id)
+    if current is None:
+        raise ValueError("No such captain.")
+
+    conn = connect()
+    try:
+        clash = conn.execute(
+            "SELECT id FROM captains WHERE name = ? COLLATE NOCASE AND id != ?",
+            (new_name, captain_id),
+        ).fetchone()
+        if clash:
+            raise ValueError(f"{new_name} is already on the list.")
+
+        with conn:
+            conn.execute(
+                "UPDATE captains SET name = ?, box = COALESCE(?, box) WHERE id = ?",
+                (new_name, box if box in BOXES else None, captain_id),
+            )
+            if new_name != current["name"]:
+                conn.execute(
+                    "UPDATE games SET player_captain = ? WHERE player_captain = ?",
+                    (new_name, current["name"]),
+                )
+                conn.execute(
+                    "UPDATE games SET bot_captain = ? WHERE bot_captain = ?",
+                    (new_name, current["name"]),
+                )
+    finally:
+        conn.close()
+    return new_name
+
+
+def set_captain_active(captain_id, active):
+    """Retire or restore a captain.
+
+    Retiring hides it from new games but leaves history intact and keeps it
+    selectable when editing a game that already uses it.
+    """
+    conn = connect()
+    with conn:
+        conn.execute(
+            "UPDATE captains SET active = ? WHERE id = ?",
+            (1 if active else 0, captain_id),
+        )
+    conn.close()
+
+
+def delete_captain(captain_id):
+    """Remove a captain outright. Refused while any game still references it."""
+    captain = get_captain(captain_id)
+    if captain is None:
+        raise ValueError("No such captain.")
+
+    used = captain_usage().get(captain["name"], 0)
+    if used:
+        raise ValueError(
+            f"{captain['name']} is used by {used} game"
+            f"{'' if used == 1 else 's'}. Retire it instead."
+        )
+
+    conn = connect()
+    with conn:
+        conn.execute("DELETE FROM captains WHERE id = ?", (captain_id,))
+    conn.close()
 
 
 BOXES = ["To Boldly Go", "Captain's Chair", "Expansion", "Other"]
 
 
 def captain_exists(name):
-    """Case-insensitive lookup. Returns the stored spelling, or None."""
+    """Case-insensitive lookup. Returns the stored spelling, or None.
+
+    Retired captains still count. A game logged before a captain was retired
+    has to stay editable.
+    """
     name = (name or "").strip()
     if not name:
         return None
     conn = connect()
     row = conn.execute(
-        "SELECT name FROM captains WHERE name = ? COLLATE NOCASE AND active = 1",
+        "SELECT name FROM captains WHERE name = ? COLLATE NOCASE",
         (name,),
     ).fetchone()
     conn.close()

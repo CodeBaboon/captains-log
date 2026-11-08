@@ -255,17 +255,33 @@ tar czf cc-$(date +%F).tar.gz -C /var/lib/captains-log photos /tmp/cc-backup.db
 
 ## Captains
 
-`db.py` seeds the eleven captains I could confirm across both boxes, grouped by
-which box they came from.
+One shared list for everyone, managed at `/captains` and seeded with the eleven
+captains confirmed across both boxes, grouped by which box they came from.
 
-The captain fields are dropdowns, not free text, so a typo cannot mint a phantom
-captain that splits your stats later. To add one, pick "Add a captain" at the
-bottom of the list and a name field appears alongside a box selector.
+Logging a game can only pick from the list. There is no inline "add a captain"
+on the game form, so a typo cannot mint a phantom captain that splits the stats
+later. Matching is case-insensitive: "georgiou" resolves to "Georgiou" rather
+than creating a second one.
 
-Matching is case-insensitive throughout. If a captain already exists under a
-different capitalisation, that spelling wins, so "georgiou" resolves to
-"Georgiou" rather than creating a second one. A scanned sheet that names an
-unknown captain drops into the add field rather than being discarded.
+The admin page is restricted to administrators. The first account ever created
+is one; `_migrate` adds the `is_admin` column to older databases and promotes
+the lowest user id.
+
+Three operations, each with a deliberate rule behind it:
+
+- **Rename cascades.** Games store captain names as text, so a rename that did
+  not also update `player_captain` and `bot_captain` would orphan the history
+  under the old spelling. The page shows how many games a rename will touch.
+- **Retiring is the soft delete.** It hides a captain from new games while
+  leaving existing games alone. A retired captain still passes validation and
+  still appears in the dropdown when editing a game that already uses it, so
+  retiring can never make an old game uneditable.
+- **Deleting is refused while any game references the captain.** Only genuinely
+  unused entries can be removed outright.
+
+A scanned sheet naming a captain that is not on the list no longer drops into an
+add field. The scan warns which names it could not match and leaves them for you
+to resolve on the captain page.
 
 ## Scanning
 
@@ -286,7 +302,8 @@ Costs a fraction of a cent per game. Swap models with `CC_MODEL`.
 ## Tests
 
 ```bash
-python3 test_app.py && python3 test_stats.py && python3 test_nav.py
+python3 test_app.py && python3 test_stats.py && python3 test_nav.py \
+  && python3 test_captains.py
 node test_sort.js   # needs jsdom: npm install jsdom
 ```
 
@@ -295,8 +312,11 @@ auth, pagination, and the extraction parser. The second covers the stats
 filters, the perspective toggle, and the aggregations, including the awkward
 cases: a single data point, identical scores, and negative totals. The third
 covers page titles, breadcrumb structure, and that every icon the page and
-manifest reference actually resolves. `test_sort.js` drives the record table's
-column sorting in a real DOM, which is the only way to catch a comparator bug. Uses a temporary database and leaves no
+manifest reference actually resolves. `test_captains.py` covers the shared captain
+list: the admin gate, the rename cascade into both game columns, that retiring
+leaves an old game editable, and the `is_admin` migration. `test_sort.js` drives
+the record table's column sorting in a real DOM, which is the only way to catch
+a comparator bug. Uses a temporary database and leaves no
 trace.
 
 ## Layout notes
