@@ -43,8 +43,7 @@ def game(**kw):
 
 
 def by_name(name):
-    return next((c for c in db.list_captains(include_retired=True)
-                 if c["name"] == name), None)
+    return next((c for c in db.list_captains() if c["name"] == name), None)
 
 
 print("\nadmin access")
@@ -68,15 +67,14 @@ check("signed out is redirected",
       b"Sign in" in anon.get("/captains", follow_redirects=True).data)
 
 print("\nadding")
-client.post("/captains", data={"name": "Janeway", "box": "Expansion"})
+client.post("/captains", data={"name": "Janeway", "box": "Duty and Honor"})
 check("captain added", by_name("Janeway") is not None)
-check("box respected", by_name("Janeway")["box"] == "Expansion")
+check("box respected", by_name("Janeway")["box"] == "Duty and Honor")
 
 r = client.post("/captains", data={"name": "janeway"}, follow_redirects=True)
 check("duplicate rejected case-insensitively", b"already on the list" in r.data)
 check("no second row created",
-      len([c for c in db.list_captains(include_retired=True)
-           if c["name"].lower() == "janeway"]) == 1)
+      len([c for c in db.list_captains() if c["name"].lower() == "janeway"]) == 1)
 
 r = client.post("/captains", data={"name": "   "}, follow_redirects=True)
 check("blank name rejected", b"Enter a name" in r.data)
@@ -86,7 +84,11 @@ check("overlong name rejected", b"too long" in r.data)
 
 r = client.post("/captains", data={"name": "Tuvok", "box": "Nonsense"},
                 follow_redirects=True)
-check("unknown box falls back", by_name("Tuvok")["box"] == "Other")
+check("unknown group rejected", b"Pick a group" in r.data)
+check("captain not created", by_name("Tuvok") is None)
+
+client.post("/captains", data={"name": "Tuvok", "box": "Second Contact"})
+check("captain lands in its group", by_name("Tuvok")["box"] == "Second Contact")
 
 print("\nrenaming cascades")
 game()
@@ -122,47 +124,32 @@ check("rename to blank rejected", b"needs a name" in r.data)
 # Changing only the box must not disturb the games.
 kirk = by_name("Kirk")
 client.post(f"/captains/{kirk['id']}",
-            data={"action": "rename", "name": "Kirk", "box": "Expansion"})
-check("box changed", by_name("Kirk")["box"] == "Expansion")
+            data={"action": "rename", "name": "Kirk", "box": "Second Contact"})
+check("box changed", by_name("Kirk")["box"] == "Second Contact")
+
+# An unknown group must leave the captain where it was rather than blanking it.
+client.post(f"/captains/{kirk['id']}",
+            data={"action": "rename", "name": "Kirk", "box": "Nonexistent"})
+check("unknown group on rename is ignored",
+      by_name("Kirk")["box"] == "Second Contact", by_name("Kirk")["box"])
 check("games untouched by a box change",
       db.captain_usage().get("Kirk") == 1, str(db.captain_usage()))
 
-print("\nretiring")
+print("\nalways pickable")
 soval = by_name("Soval")
-client.post(f"/captains/{soval['id']}", data={"action": "retire"})
-check("retired flag set", by_name("Soval")["active"] == 0)
-check("hidden from the pick list",
-      "Soval" not in [c["name"] for c in db.list_captains()])
-check("still visible to the admin page",
-      "Soval" in [c["name"] for c in db.list_captains(include_retired=True)])
-check("history intact", db.captain_usage().get("Soval") == 1)
+check("every captain is offered on a new game",
+      b'value="Soval"' in client.get("/games/new").data)
 
-check("retired captain still validates", db.captain_exists("Soval") == "Soval")
-
-# A game logged before the retirement has to stay editable.
 target = next(r for r in db.list_games(1) if r["bot_captain"] == "Soval")
-form_page = client.get(f"/games/{target['id']}/edit")
-check("edit page still offers the retired captain",
-      b'value="Soval"' in form_page.data)
+check("and on an edit",
+      b'value="Soval"' in client.get(f"/games/{target['id']}/edit").data)
 
-r = client.post(f"/games/{target['id']}", data={
-    "played_on": target["played_on"], "player_captain": target["player_captain"],
-    "board_side": "advanced", "bot_captain": "Soval",
-    "bot_difficulty": "Lieutenant", "ending": "resolution",
-    "p_glory": "11", "b_glory": "5", "p_locations": "4", "b_locations": "3",
-    "p_endgame": "8", "b_endgame": "6", "p_card_vp": "20", "b_card_vp": "10",
-    "p_research": "6", "b_research": "4", "p_influence": "4", "b_influence": "2",
-    "p_military": "2", "b_military": "1", "p_mission": "6",
-}, follow_redirects=True)
-check("editing an old game with a retired captain still saves",
-      db.get_game(target["id"], 1)["p_glory"] == 11)
-
-r = client.get("/games/new")
-check("new game does not offer the retired captain",
-      b'value="Soval"' not in r.data)
-
-client.post(f"/captains/{soval['id']}", data={"action": "restore"})
-check("restored", by_name("Soval")["active"] == 1)
+check("no retire action remains",
+      client.post(f"/captains/{soval['id']}", data={"action": "retire"},
+                  follow_redirects=True).data.count(b"Unknown action") == 1)
+check("Soval survived that", by_name("Soval") is not None)
+check("still usable after an unknown action",
+      db.captain_exists("Soval") == "Soval")
 
 print("\ndeleting")
 tuvok = by_name("Tuvok")
@@ -185,6 +172,56 @@ r = client.post(f"/captains/{used['id']}", data={"action": "sabotage"},
                 follow_redirects=True)
 check("unknown action rejected", b"Unknown action" in r.data)
 
+print("\ngroups")
+names = db.box_names()
+check("seeded groups present",
+      names == ["Captain's Chair", "To Boldly Go", "Second Contact",
+                "Resistance is Futile", "Duty and Honor"], str(names))
+check("old labels gone", "Expansion" not in names and "Other" not in names)
+
+r = client.get("/captains")
+check("groups render even when empty", b"No captains in this group yet" in r.data)
+
+client.post("/captains/groups", data={"name": "Mirror Universe"})
+check("group added", "Mirror Universe" in db.box_names())
+check("new group is offered when adding a captain",
+      b"Mirror Universe" in client.get("/captains").data)
+
+r = client.post("/captains/groups", data={"name": "mirror universe"},
+                follow_redirects=True)
+check("duplicate group rejected", b"already a group" in r.data)
+check("no second group", db.box_names().count("Mirror Universe") == 1)
+
+r = client.post("/captains/groups", data={"name": "  "}, follow_redirects=True)
+check("blank group rejected", b"Enter a group name" in r.data)
+
+r = client.post("/captains/groups", data={"name": "x" * 61}, follow_redirects=True)
+check("overlong group rejected", b"too long" in r.data)
+
+mirror = next(b for b in db.list_boxes() if b["name"] == "Mirror Universe")
+client.post("/captains", data={"name": "Mirror Kirk", "box": "Mirror Universe"})
+r = client.post(f"/captains/groups/{mirror['id']}/delete", follow_redirects=True)
+check("group with captains cannot be deleted", b"still has 1 captain" in r.data)
+check("group survived", "Mirror Universe" in db.box_names())
+
+client.post(f"/captains/{by_name('Mirror Kirk')['id']}", data={"action": "delete"})
+r = client.post(f"/captains/groups/{mirror['id']}/delete", follow_redirects=True)
+check("empty group deleted", "Mirror Universe" not in db.box_names())
+
+r = client.post("/captains/groups/999999/delete", follow_redirects=True)
+check("unknown group handled", b"No such group" in r.data)
+
+check("non-admin cannot add a group",
+      other.post("/captains/groups", data={"name": "Nope"}).status_code == 403)
+check("non-admin cannot delete a group",
+      other.post(f"/captains/groups/1/delete").status_code == 403)
+check("that attempt changed nothing", "Nope" not in db.box_names())
+
+# A group deleted on purpose must not come back on the next start.
+db.init_db()
+check("seeding does not resurrect a deleted group",
+      "Mirror Universe" not in db.box_names())
+
 print("\nmigration")
 legacy = os.path.join(TMP, "legacy.db")
 conn = sqlite3.connect(legacy)
@@ -205,6 +242,27 @@ check("other accounts do not", rows[1]["is_admin"] == 0)
 db._migrate(conn)
 check("migration is idempotent",
       conn.execute("SELECT COUNT(*) FROM users WHERE is_admin = 1").fetchone()[0] == 1)
+
+# A database whose captains sit in groups the seed list never had must keep
+# them, or those captains would vanish from every dropdown.
+conn.executescript("""
+CREATE TABLE boxes (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE);
+CREATE TABLE captains (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE,
+                       box TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1);
+INSERT INTO captains (name, box) VALUES ('Legacy One', 'Expansion'),
+                                        ('Legacy Two', 'Other');
+""")
+conn.commit()
+db._seed_boxes(conn)
+conn.commit()
+legacy_names = [r["name"] for r in conn.execute("SELECT name FROM boxes ORDER BY id")]
+check("seed list applied to the empty table",
+      legacy_names[:5] == db.SEED_BOXES, str(legacy_names))
+check("legacy groups adopted",
+      "Expansion" in legacy_names and "Other" in legacy_names, str(legacy_names))
+db._seed_boxes(conn)
+check("adoption is idempotent",
+      len([r for r in conn.execute("SELECT name FROM boxes")]) == len(legacy_names))
 conn.close()
 
 shutil.rmtree(TMP, ignore_errors=True)

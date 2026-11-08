@@ -175,13 +175,18 @@ def log_page():
 @admin_required
 def captains_page():
     usage = db.captain_usage()
-    captains = db.list_captains(include_retired=True)
+    captains = db.list_captains()
     for captain in captains:
         captain["games"] = usage.get(captain["name"], 0)
+    boxes = db.list_boxes()
+    in_box = db.box_usage()
+    for box in boxes:
+        box["captains"] = in_box.get(box["name"], 0)
+
     return render_template(
         "captains.html",
         captains=captains,
-        boxes=db.BOXES,
+        boxes=boxes,
         total=sum(usage.values()),
     )
 
@@ -190,17 +195,41 @@ def captains_page():
 @admin_required
 def captains_add():
     name = (request.form.get("name") or "").strip()
-    box = request.form.get("box") or "Other"
+    box = request.form.get("box") or ""
 
+    existing = db.captain_exists(name)
     if not name:
         flash("Enter a name.")
     elif len(name) > 60:
         flash("That name is too long.")
-    elif db.captain_exists(name):
-        flash(f"{db.captain_exists(name)} is already on the list.")
+    elif existing:
+        flash(f"{existing} is already on the list.")
     else:
-        db.add_captain(name, box)
+        try:
+            db.add_captain(name, box)
+        except ValueError as exc:
+            flash(str(exc))
 
+    return redirect(url_for("captains_page"))
+
+
+@app.post("/captains/groups")
+@admin_required
+def boxes_add():
+    try:
+        db.add_box(request.form.get("name"))
+    except ValueError as exc:
+        flash(str(exc))
+    return redirect(url_for("captains_page"))
+
+
+@app.post("/captains/groups/<int:box_id>/delete")
+@admin_required
+def boxes_delete(box_id):
+    try:
+        db.delete_box(box_id)
+    except ValueError as exc:
+        flash(str(exc))
     return redirect(url_for("captains_page"))
 
 
@@ -213,10 +242,6 @@ def captains_update(captain_id):
         if action == "rename":
             db.rename_captain(captain_id, request.form.get("name"),
                               request.form.get("box"))
-        elif action == "retire":
-            db.set_captain_active(captain_id, False)
-        elif action == "restore":
-            db.set_captain_active(captain_id, True)
         elif action == "delete":
             db.delete_captain(captain_id)
         else:
@@ -281,7 +306,7 @@ def stats_page():
         captains=db.list_captains(),
         captain_counts=counts,
         extra_captains=[n for n in known if n not in [c["name"] for c in db.list_captains()]],
-        boxes=db.BOXES,
+        boxes=db.box_names(),
         difficulties=config.DIFFICULTIES,
         chosen_captains=chosen_captains,
         chosen_boards=chosen_boards,
@@ -336,23 +361,6 @@ def captain_page(name):
 # --------------------------------------------------------------------------
 # Game entry
 # --------------------------------------------------------------------------
-
-def _pickable_captains(game=None):
-    """Active captains, plus any retired one this game already uses."""
-    captains = db.list_captains()
-    if game is None:
-        return captains
-
-    listed = {c["name"] for c in captains}
-    for field in ("player_captain", "bot_captain"):
-        name = game[field] if game[field] else None
-        if name and name not in listed:
-            extra = [c for c in db.list_captains(include_retired=True)
-                     if c["name"] == name]
-            captains = captains + extra
-            listed.add(name)
-    return captains
-
 
 def _resolve_captain(form, field, label):
     """Take a captain from the dropdown.
@@ -487,7 +495,7 @@ def new_game():
             return render_template(
                 "game_form.html",
                 captains=db.list_captains(),
-                boxes=db.BOXES,
+                boxes=db.box_names(),
                 difficulties=config.DIFFICULTIES,
                 solo_win_score=config.SOLO_WIN_SCORE,
                 rows=config.SCORE_ROWS,
@@ -506,7 +514,7 @@ def new_game():
     return render_template(
         "game_form.html",
         captains=db.list_captains(),
-        boxes=db.BOXES,
+        boxes=db.box_names(),
         difficulties=config.DIFFICULTIES,
         solo_win_score=config.SOLO_WIN_SCORE,
         rows=config.SCORE_ROWS,
@@ -545,8 +553,8 @@ def edit_game(game_id):
         abort(404)
     return render_template(
         "game_form.html",
-        captains=_pickable_captains(game),
-        boxes=db.BOXES,
+        captains=db.list_captains(),
+        boxes=db.box_names(),
         difficulties=config.DIFFICULTIES,
         solo_win_score=config.SOLO_WIN_SCORE,
         rows=config.SCORE_ROWS,

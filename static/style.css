@@ -1258,9 +1258,6 @@ select {
   margin-bottom: 5px;
 }
 
-.cap-retired { border-left-color: #3A3A3A; }
-.cap-retired .cap-name { color: var(--text-dim); }
-
 .cap summary { padding: 9px 12px; cursor: pointer; list-style: none; }
 .cap summary::-webkit-details-marker { display: none; }
 
@@ -1281,17 +1278,6 @@ select {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.cap-tag {
-  flex: none;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  border: 1px solid #3A3A3A;
-  border-radius: 999px;
-  padding: 2px 9px;
 }
 
 .cap-games {
@@ -1325,3 +1311,14 @@ select {
 
 .cap-actions form { flex: 1; display: flex; }
 .cap-actions .btn { width: 100%; padding: 7px; }
+
+.group-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.group-title span { flex: 1; min-width: 0; }
+.group-title form { flex: none; }
+.group-title .chip { cursor: pointer; }
+.group-title .chip:hover { background: var(--lcars-rose); color: #2A0F0F; }

@@ -20,10 +20,15 @@ CREATE TABLE IF NOT EXISTS users (
     created_at    TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS boxes (
+    id   INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+);
+
 CREATE TABLE IF NOT EXISTS captains (
     id     INTEGER PRIMARY KEY,
     name   TEXT NOT NULL UNIQUE,
-    box    TEXT NOT NULL DEFAULT 'Other',
+    box    TEXT NOT NULL DEFAULT 'Captain''s Chair',
     active INTEGER NOT NULL DEFAULT 1
 );
 
@@ -87,6 +92,26 @@ def connect():
     return conn
 
 
+def _seed_boxes(conn):
+    """Fill the groups table, once, then adopt anything already in use.
+
+    Seeding only happens on an empty table, so a group deleted later does not
+    come back. Any box value already sitting on a captain is adopted whether or
+    not it was seeded, because grouping decides whether a captain is visible at
+    all and an unlisted group would hide one.
+    """
+    if conn.execute("SELECT COUNT(*) AS n FROM boxes").fetchone()["n"] == 0:
+        for name in SEED_BOXES:
+            conn.execute("INSERT OR IGNORE INTO boxes (name) VALUES (?)", (name,))
+
+    for row in conn.execute("SELECT DISTINCT box FROM captains WHERE box != ''"):
+        conn.execute(
+            "INSERT INTO boxes (name) SELECT ? WHERE NOT EXISTS "
+            "(SELECT 1 FROM boxes WHERE name = ? COLLATE NOCASE)",
+            (row["box"], row["box"]),
+        )
+
+
 def _migrate(conn):
     """Small, idempotent schema additions for databases created earlier."""
     columns = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
@@ -112,6 +137,7 @@ def init_db():
                 "INSERT OR IGNORE INTO captains (name, box) VALUES (?, ?)",
                 (name, box),
             )
+        _seed_boxes(conn)
 
         existing = conn.execute("SELECT COUNT(*) AS n FROM users").fetchone()["n"]
         if existing == 0 and config.INITIAL_PASSWORD:
@@ -166,12 +192,11 @@ def create_user(username, password, is_admin=None):
     return cur.lastrowid
 
 
-def list_captains(include_retired=False):
-    """Captains available to pick. Retired ones are hidden unless asked for."""
-    where = "" if include_retired else "WHERE active = 1"
+def list_captains():
+    """Every captain, grouped by box. One shared list for everyone."""
     conn = connect()
     rows = conn.execute(
-        f"SELECT id, name, box, active FROM captains {where} ORDER BY box, name"
+        "SELECT id, name, box FROM captains ORDER BY box, name"
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
@@ -202,7 +227,7 @@ def captain_usage():
 def get_captain(captain_id):
     conn = connect()
     row = conn.execute(
-        "SELECT id, name, box, active FROM captains WHERE id = ?", (captain_id,)
+        "SELECT id, name, box FROM captains WHERE id = ?", (captain_id,)
     ).fetchone()
     conn.close()
     return dict(row) if row else None
@@ -236,7 +261,7 @@ def rename_captain(captain_id, new_name, box=None):
         with conn:
             conn.execute(
                 "UPDATE captains SET name = ?, box = COALESCE(?, box) WHERE id = ?",
-                (new_name, box if box in BOXES else None, captain_id),
+                (new_name, box_exists(box), captain_id),
             )
             if new_name != current["name"]:
                 conn.execute(
@@ -250,21 +275,6 @@ def rename_captain(captain_id, new_name, box=None):
     finally:
         conn.close()
     return new_name
-
-
-def set_captain_active(captain_id, active):
-    """Retire or restore a captain.
-
-    Retiring hides it from new games but leaves history intact and keeps it
-    selectable when editing a game that already uses it.
-    """
-    conn = connect()
-    with conn:
-        conn.execute(
-            "UPDATE captains SET active = ? WHERE id = ?",
-            (1 if active else 0, captain_id),
-        )
-    conn.close()
 
 
 def delete_captain(captain_id):
@@ -286,15 +296,94 @@ def delete_captain(captain_id):
     conn.close()
 
 
-BOXES = ["To Boldly Go", "Captain's Chair", "Expansion", "Other"]
+# Seeded once, on an empty boxes table. After that the list is yours to manage.
+SEED_BOXES = [
+    "Captain's Chair",
+    "To Boldly Go",
+    "Second Contact",
+    "Resistance is Futile",
+    "Duty and Honor",
+]
+
+
+def list_boxes():
+    """Every group, in the order they were created."""
+    conn = connect()
+    rows = conn.execute("SELECT id, name FROM boxes ORDER BY id").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def box_names():
+    return [b["name"] for b in list_boxes()]
+
+
+def box_exists(name):
+    """Case-insensitive lookup. Returns the stored spelling, or None."""
+    name = (name or "").strip()
+    if not name:
+        return None
+    conn = connect()
+    row = conn.execute(
+        "SELECT name FROM boxes WHERE name = ? COLLATE NOCASE", (name,)
+    ).fetchone()
+    conn.close()
+    return row["name"] if row else None
+
+
+def add_box(name):
+    name = (name or "").strip()
+    if not name:
+        raise ValueError("Enter a group name.")
+    if len(name) > 60:
+        raise ValueError("That group name is too long.")
+
+    existing = box_exists(name)
+    if existing:
+        raise ValueError(f"{existing} is already a group.")
+
+    conn = connect()
+    with conn:
+        conn.execute("INSERT INTO boxes (name) VALUES (?)", (name,))
+    conn.close()
+    return name
+
+
+def box_usage():
+    """How many captains sit in each group."""
+    conn = connect()
+    rows = conn.execute(
+        "SELECT box AS name, COUNT(*) AS n FROM captains GROUP BY box COLLATE NOCASE"
+    ).fetchall()
+    conn.close()
+    return {r["name"]: r["n"] for r in rows}
+
+
+def delete_box(box_id):
+    """Remove a group. Refused while any captain is in it."""
+    conn = connect()
+    row = conn.execute("SELECT name FROM boxes WHERE id = ?", (box_id,)).fetchone()
+    if row is None:
+        conn.close()
+        raise ValueError("No such group.")
+
+    name = row["name"]
+    used = conn.execute(
+        "SELECT COUNT(*) AS n FROM captains WHERE box = ? COLLATE NOCASE", (name,)
+    ).fetchone()["n"]
+    if used:
+        conn.close()
+        raise ValueError(
+            f"{name} still has {used} captain{'' if used == 1 else 's'} in it."
+        )
+
+    with conn:
+        conn.execute("DELETE FROM boxes WHERE id = ?", (box_id,))
+    conn.close()
 
 
 def captain_exists(name):
-    """Case-insensitive lookup. Returns the stored spelling, or None.
-
-    Retired captains still count. A game logged before a captain was retired
-    has to stay editable.
-    """
+    """Case-insensitive lookup. Returns the stored spelling, or None."""
     name = (name or "").strip()
     if not name:
         return None
@@ -307,7 +396,7 @@ def captain_exists(name):
     return row["name"] if row else None
 
 
-def add_captain(name, box="Other"):
+def add_captain(name, box):
     """Register a captain. Returns the stored spelling.
 
     If one already exists under a different capitalisation, that spelling wins,
@@ -321,8 +410,9 @@ def add_captain(name, box="Other"):
     if existing:
         return existing
 
-    if box not in BOXES:
-        box = "Other"
+    box = box_exists(box)
+    if box is None:
+        raise ValueError("Pick a group.")
     conn = connect()
     with conn:
         conn.execute(

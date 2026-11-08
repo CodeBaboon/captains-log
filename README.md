@@ -267,17 +267,44 @@ The admin page is restricted to administrators. The first account ever created
 is one; `_migrate` adds the `is_admin` column to older databases and promotes
 the lowest user id.
 
-Three operations, each with a deliberate rule behind it:
+### Groups
+
+Boxes and expansions live in their own `boxes` table, managed on the same page.
+Add one when a new set comes out; delete one once no captain sits in it.
+
+`_seed_boxes` fills the table only when it is empty, so a group deleted on
+purpose does not reappear on the next restart. It then adopts any box value
+already present on a captain, whether or not it was seeded. That matters
+because grouping is what decides whether a captain appears in a dropdown at
+all: an unlisted group would hide its captains from the game form, the edit
+form, and the stats filter.
+
+The seed list is Captain's Chair, To Boldly Go, Second Contact, Resistance is
+Futile, and Duty and Honor.
+
+Groups cannot be renamed yet. A typo is fixable by deleting the group while it
+is empty and adding it again.
+
+### Captains
+
+Two operations, each with a deliberate rule behind it:
 
 - **Rename cascades.** Games store captain names as text, so a rename that did
   not also update `player_captain` and `bot_captain` would orphan the history
   under the old spelling. The page shows how many games a rename will touch.
-- **Retiring is the soft delete.** It hides a captain from new games while
-  leaving existing games alone. A retired captain still passes validation and
-  still appears in the dropdown when editing a game that already uses it, so
-  retiring can never make an old game uneditable.
 - **Deleting is refused while any game references the captain.** Only genuinely
-  unused entries can be removed outright.
+  unused entries can be removed outright, and the Delete button is only shown
+  for those. To get rid of one that has games, rename it or delete those games.
+
+Every captain on the list is always available on both the new game and edit
+forms. There is no retired or inactive state.
+
+A captain's group must exist. An unknown one is rejected when adding, and
+ignored when renaming so a bad value cannot strand a captain outside every
+group.
+
+The `captains.active` column is vestigial. It is left in the schema so old and
+new databases match, but nothing reads or writes it.
 
 A scanned sheet naming a captain that is not on the list no longer drops into an
 add field. The scan warns which names it could not match and leaves them for you
