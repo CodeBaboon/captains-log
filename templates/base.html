@@ -45,7 +45,7 @@
     <span class="masthead-meta">{% block meta %}{% endblock %}</span>
   </header>
 
-  <div class="divider">
+  <div class="divider{% if current_user %} divider-has-menu{% endif %}">
     <span class="divider-cap" aria-hidden="true"></span>
     <span class="divider-bar" aria-hidden="true"></span>
     {% if current_user %}

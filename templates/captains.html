@@ -8,18 +8,6 @@
 
 {% block content %}
 
-<section class="panel">
-  <h2 class="panel-title">Add a captain</h2>
-  <form class="add-captain" method="post" action="{{ url_for('captains_add') }}">
-    <input type="text" name="name" placeholder="Name" maxlength="60"
-           autocomplete="off" required aria-label="Captain name">
-    <select name="box" aria-label="Which group" required>
-      {% for box in boxes %}<option value="{{ box.name }}">{{ box.name }}</option>{% endfor %}
-    </select>
-    <button class="btn btn-primary" type="submit">Add</button>
-  </form>
-</section>
-
 {% for box in boxes %}
   {% set members = captains | selectattr('box', 'equalto', box.name) | list %}
     <section class="panel">
@@ -33,9 +21,7 @@
           </form>
         {% endif %}
       </h2>
-      {% if not members %}
-        <p class="panel-thin">No captains in this group yet.</p>
-      {% endif %}
+
       {% for captain in members %}
         <details class="cap">
           <summary>
@@ -87,6 +73,14 @@
           </div>
         </details>
       {% endfor %}
+
+      <form class="cap-add" method="post" action="{{ url_for('captains_add') }}">
+        <input type="hidden" name="box" value="{{ box.name }}">
+        <input type="text" name="name" maxlength="60" autocomplete="off" required
+               placeholder="Add a captain"
+               aria-label="New captain in {{ box.name }}">
+        <button class="chip chip-on" type="submit">Add</button>
+      </form>
     </section>
 {% endfor %}
 

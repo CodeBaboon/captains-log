@@ -221,6 +221,11 @@ row and appears on every signed-in page. The panel drops downward over the
 content, which is the point: an earlier version sat at the foot of the page and
 its options opened below the fold.
 
+When the cap is present the parent carries a `divider-has-menu` class and the
+bar squares off its right end, so the cap supplies the rounded finish and the
+two read as one element. A class rather than `:has()`, so nothing depends on
+selector support. Without a cap, the bar keeps its own curve.
+
 The top divider is 16px rather than 12px so a name fits in the cap, and the
 cap's hit area reaches 12px above and below via a pseudo-element, since a 16px
 strip is too thin to tap reliably. Dividers inside panels stay at 12px.
@@ -289,6 +294,11 @@ the lowest user id.
 
 Boxes and expansions live in their own `boxes` table, managed on the same page.
 Add one when a new set comes out; delete one once no captain sits in it.
+
+Each group ends with its own add row, so adding a captain never involves
+choosing a group from a dropdown: the group is a hidden field and the section
+heading is the context. The row is styled as a dimmed empty slot in the same
+shape as the captain rows above it.
 
 `_seed_boxes` fills the table only when it is empty, so a group deleted on
 purpose does not reappear on the next restart. It then adopts any box value

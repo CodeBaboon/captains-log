@@ -115,16 +115,23 @@ check("menu names the account", "dave" in html.split('bar-menu-name')[1][:40])
 check("admin sees the captain link", 'href="/captains"' in html)
 
 # It has to sit inside the divider, not after it, or it is not the bar cap.
-divider = html[html.index('<div class="divider">'):html.index('{% endwith %}')
-               if '{% endwith %}' in html else html.index('</div>', html.index('<div class="divider">')) + 600]
+start = re.search(r'<div class="divider[^"]*">', html).start()
+divider = html[start:html.index('</div>', html.index('</details>', start))]
 check("menu lives inside the divider",
-      divider.index('class="bar-menu"') < divider.index('action="/logout"'))
+      'class="bar-menu"' in divider and 'action="/logout"' in divider)
 
 check("menu sits above the content",
       html.index('class="bar-menu"') < html.index('stat-strip'))
 
 check("sign out asks first", 'confirm(' in html and 'Sign out of' in html)
 check("close script loaded", 'menu.js' in html)
+check("bar squares off beside the cap", 'divider divider-has-menu' in html)
+
+anon_html = app.test_client().get("/login").data.decode()
+check("bar keeps its curve with no cap",
+      'divider-has-menu' not in anon_html)
+check("panel dividers are untouched",
+      'divider divider-foot' in client.get("/games/new").data.decode())
 
 for path in ["/stats", "/games/new", "/games/1"]:
     check(f"menu present on {path}", b'class="bar-menu"' in client.get(path).data)

@@ -48,7 +48,8 @@ def by_name(name):
 
 print("\nadmin access")
 r = client.get("/captains")
-check("page renders for the owner", r.status_code == 200 and b"Add a captain" in r.data)
+check("page renders for the owner",
+      r.status_code == 200 and b'class="cap-add"' in r.data)
 check("log links to it", b"/captains" in client.get("/").data)
 
 check("first account is an admin", bool(db.get_user(1)["is_admin"]))
@@ -67,6 +68,21 @@ check("signed out is redirected",
       b"Sign in" in anon.get("/captains", follow_redirects=True).data)
 
 print("\nadding")
+page = client.get("/captains").data.decode()
+check("each group carries its own add row",
+      page.count('class="cap-add"') == len(db.box_names()),
+      f"{page.count('class=\"cap-add\"')} rows for {len(db.box_names())} groups")
+check("the group dropdown is gone", 'aria-label="Which group"' not in page)
+check("the group is a hidden field now", 'type="hidden" name="box"' in page)
+check("add rows label their group for screen readers",
+      'aria-label="New captain in Second Contact"' in page)
+check("add rows carry their group",
+      'value="Captain&#39;s Chair"' in page and 'value="Duty and Honor"' in page)
+check("a group with an apostrophe posts its real name",
+      client.post("/captains", data={"name": "Archer", "box": "Captain's Chair"},
+                  follow_redirects=True) is not None
+      and by_name("Archer")["box"] == "Captain's Chair")
+
 client.post("/captains", data={"name": "Janeway", "box": "Duty and Honor"})
 check("captain added", by_name("Janeway") is not None)
 check("box respected", by_name("Janeway")["box"] == "Duty and Honor")
@@ -179,8 +195,10 @@ check("seeded groups present",
                 "Resistance is Futile", "Duty and Honor"], str(names))
 check("old labels gone", "Expansion" not in names and "Other" not in names)
 
-r = client.get("/captains")
-check("groups render even when empty", b"No captains in this group yet" in r.data)
+page = client.get("/captains").data.decode()
+check("empty groups still render with an add row",
+      page.count('class="cap-add"') == len(db.box_names()))
+check("empty groups offer deletion", "Delete group" in page)
 
 client.post("/captains/groups", data={"name": "Mirror Universe"})
 check("group added", "Mirror Universe" in db.box_names())

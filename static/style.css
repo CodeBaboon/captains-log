@@ -88,6 +88,11 @@ body {
   height: 16px;
 }
 
+/* When the menu cap follows the bar, the cap supplies the rounded end, so the
+   bar has to square off. A class on the parent rather than :has(), so it does
+   not depend on selector support. Dividers without a menu keep their curve. */
+.divider-has-menu > .divider-bar { border-radius: 0; }
+
 .divider-cap {
   width: 58px;
   height: 12px;
@@ -1253,8 +1258,7 @@ select {
 /* --- Captain admin ----------------------------------------------------- */
 
 .add-captain { display: flex; gap: 8px; flex-wrap: wrap; }
-.add-captain input[type="text"] { flex: 2 1 140px; }
-.add-captain select { flex: 1 1 120px; }
+.add-captain input[type="text"] { flex: 1 1 160px; }
 .add-captain .btn { flex: 0 0 auto; margin-top: 0; }
 
 .cap {
@@ -1294,6 +1298,39 @@ select {
   text-transform: uppercase;
   color: var(--lcars-blue);
 }
+
+.cap-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border-left: 8px solid #2A2A2A;
+  border-radius: 0 999px 999px 0;
+  padding: 4px 10px 4px 12px;
+  margin-top: 6px;
+}
+
+.cap-add input[type="text"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  padding: 6px 0;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.cap-add input[type="text"]::placeholder {
+  text-transform: uppercase;
+  color: #4A4A4A;
+}
+
+.cap-add input[type="text"]:focus { border: 0; }
+
+.cap-add:focus-within { border-left-color: var(--lcars-orange); }
+
+.cap-add .chip { flex: none; cursor: pointer; }
 
 .cap-body { padding: 4px 12px 12px; }
 .cap-body .field { margin-bottom: 9px; }
