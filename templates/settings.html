@@ -10,7 +10,6 @@
 
 <section class="panel">
   <h2 class="panel-title">Display name</h2>
-  <p class="panel-sub">What shows in the menu and on shared views</p>
   <form class="add-captain" method="post" action="{{ url_for('settings') }}">
     <input type="text" name="username" value="{{ account.username }}"
            maxlength="40" autocomplete="off" required aria-label="Display name">
@@ -28,18 +27,10 @@
     <div><dt>Role</dt><dd>{{ 'Administrator' if account.is_admin else 'Player' }}</dd></div>
     <div><dt>Games</dt><dd>{{ game_count }}</dd></div>
   </dl>
-
-  {% if access_on and account.email %}
-    <p class="panel-thin">
-      You sign in through Cloudflare with {{ account.email }}. If that address
-      changes, an administrator updates it here so this account keeps its games.
-    </p>
-  {% endif %}
 </section>
 
 <section class="panel">
   <h2 class="panel-title">Your data</h2>
-  <p class="panel-sub">Every game you have logged, as a file you keep</p>
   <a class="btn btn-ghost btn-block" href="{{ url_for('export_games') }}"
      download>Export my games</a>
 </section>

@@ -8,13 +8,6 @@
 
 {% block content %}
 
-{% if access_on %}
-  <p class="solo-note">
-    Invite someone in Cloudflare Access and an account appears here the first
-    time they sign in.
-  </p>
-{% endif %}
-
 <section class="panel">
   {% for account in users %}
     <details class="cap">

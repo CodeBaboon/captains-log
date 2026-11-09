@@ -258,15 +258,13 @@ def settings():
         "settings.html",
         account=db.get_user(g.user["id"]),
         game_count=db.count_games(g.user["id"]),
-        access_on=access.enabled(),
     )
 
 
 @app.get("/users")
 @admin_required
 def users_page():
-    return render_template("users.html", users=db.list_users(),
-                           access_on=access.enabled())
+    return render_template("users.html", users=db.list_users())
 
 
 @app.post("/users/<int:user_id>")
